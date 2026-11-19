@@ -1,0 +1,2587 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0F766E" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <title>Plantão Zen — Gestão Clínica de Escalas e Turnos</title>
+
+  <!-- Tipografia Clínica: Plus Jakarta Sans + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#F0FDFA',
+              100: '#CCFBF1',
+              200: '#99F6E4',
+              600: '#0F766E',
+              700: '#115E59',
+              800: '#134E4A',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --bg-canvas: #F8FAFC;
+      --bg-surface: #FFFFFF;
+      --bg-subtle: #F1F5F9;
+      --border-subtle: #E2E8F0;
+      --border-strong: #CBD5E1;
+      --ink-primary: #0F172A;
+      --ink-secondary: #475569;
+      --ink-muted: #64748B;
+    }
+
+    html.dark {
+      --bg-canvas: #0B1120;
+      --bg-surface: #111827;
+      --bg-subtle: #1E293B;
+      --border-subtle: #1F2937;
+      --border-strong: #374151;
+      --ink-primary: #F8FAFC;
+      --ink-secondary: #94A3B8;
+      --ink-muted: #64748B;
+    }
+
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--ink-primary);
+      font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .tabular-clinical {
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.01em;
+    }
+
+    .surface-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      box-shadow: 0 1px 2px 0 rgb(15 23 42 / 0.04);
+    }
+
+    .surface-subtle {
+      background-color: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+    }
+
+    /* Scrollbar discreta */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+    html.dark ::-webkit-scrollbar-thumb { background: #334155; }
+
+    /* Estilos dedicados para Impressão / PDF da Folha de Ponto e Portfólio */
+    @media print {
+      body {
+        background: #FFFFFF !important;
+        color: #0F172A !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-only {
+        display: block !important;
+      }
+      main {
+        margin-left: 0 !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+      }
+      .surface-card {
+        border: 1px solid #CBD5E1 !important;
+        box-shadow: none !important;
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-20 lg:pb-0 selection:bg-teal-600 selection:text-white">
+
+  <!-- =========================================================
+       TELA DE LOGIN SPLIT-SCREEN (Alternável para demonstração)
+       ========================================================= -->
+  <div id="loginView" class="hidden min-h-screen grid lg:grid-cols-12">
+    <!-- Coluna Esquerda: Autenticação -->
+    <div class="lg:col-span-5 flex flex-col justify-between p-6 sm:p-12 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-teal-700 text-white flex items-center justify-center font-bold text-sm tracking-tight">PZ</div>
+          <div>
+            <span class="font-bold text-slate-900 dark:text-white tracking-tight">Plantão Zen</span>
+            <span class="ml-2 text-[11px] font-mono uppercase px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">Clínico v3.2</span>
+          </div>
+        </div>
+        <button onclick="toggleTheme()" class="p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-medium" title="Alternar tema">
+          Tema
+        </button>
+      </div>
+
+      <div class="max-w-sm w-full mx-auto my-10">
+        <div class="mb-6">
+          <span class="inline-block text-xs font-mono font-medium text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 px-2.5 py-1 rounded-md mb-3">
+            Acesso Profissional · Escalas & Assistência
+          </span>
+          <h1 class="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Entrar na estação clínica</h1>
+          <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Consulte sua escala, registre passagem SBAR e acompanhe carga horária.</p>
+        </div>
+
+        <form onsubmit="handleLogin(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">CRM / UF ou E-mail institucional</label>
+            <input type="text" id="loginUser" value="CRM-RJ 52.104892-0" required
+              class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-600" />
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Senha de acesso</label>
+              <span class="text-xs text-teal-700 dark:text-teal-400">Sessão offline ativa</span>
+            </div>
+            <input type="password" value="••••••••••••" required
+              class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-600" />
+          </div>
+          <button type="submit"
+            class="w-full py-2.5 px-4 rounded-lg bg-teal-700 hover:bg-teal-800 text-white font-semibold text-sm transition-colors cursor-pointer">
+            Acessar Painel Operacional
+          </button>
+        </form>
+
+        <div class="mt-6 pt-5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+          <span>Armazenamento local criptografado</span>
+          <span class="font-mono text-emerald-600 dark:text-emerald-400">● Operacional</span>
+        </div>
+      </div>
+
+      <div class="text-xs text-slate-400 flex items-center justify-between">
+        <span>Plantão Zen · Engenharia Clínica</span>
+        <span class="font-mono">19/11/2026</span>
+      </div>
+    </div>
+
+    <!-- Coluna Direita: Resumo Contextual Real -->
+    <div class="hidden lg:flex lg:col-span-7 bg-slate-900 text-slate-100 p-12 flex-col justify-between relative overflow-hidden">
+      <div class="max-w-xl">
+        <p class="text-xs font-mono uppercase tracking-wider text-teal-400 mb-3">Resumo da Operação · Novembro 2026</p>
+        <h2 class="text-3xl font-bold tracking-tight text-white leading-snug">
+          Continuidade assistencial, controle de fadiga e passagem de plantão sem ruído.
+        </h2>
+        <p class="text-sm text-slate-400 mt-3 leading-relaxed">
+          Projetado para médicos plantonistas, residentes e coordenadores de escala acompanharem turnos fixos, deslocamentos entre unidades, permutas e procedimentos realizados.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 max-w-2xl my-8">
+        <div class="p-4 rounded-xl bg-slate-800/80 border border-slate-700">
+          <div class="text-xs font-mono text-slate-400">PRÓXIMO TURNO</div>
+          <div class="text-base font-semibold text-white mt-1">Hoje · 19h00 – 07h00</div>
+          <div class="text-xs text-teal-400 mt-1">UTI Geral · Hospital Santa Casa</div>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-800/80 border border-slate-700">
+          <div class="text-xs font-mono text-slate-400">TERMÔMETRO DE CARGA</div>
+          <div class="text-base font-semibold text-white mt-1 tabular-clinical">48h / 60h semanais</div>
+          <div class="text-xs text-emerald-400 mt-1">Dentro da janela segura</div>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-800/80 border border-slate-700">
+          <div class="text-xs font-mono text-slate-400">PASSAGEM SBAR</div>
+          <div class="text-base font-semibold text-white mt-1">Checklist & WhatsApp</div>
+          <div class="text-xs text-slate-400 mt-1">Pronto para compartilhamento rápido</div>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-800/80 border border-slate-700">
+          <div class="text-xs font-mono text-slate-400">CABECEIRA OFFLINE</div>
+          <div class="text-base font-semibold text-white mt-1">DVA · CKD-EPI · SRI · Na+</div>
+          <div class="text-xs text-slate-400 mt-1">Cálculo instantâneo sem rede</div>
+        </div>
+      </div>
+
+      <div class="text-xs font-mono text-slate-500">
+        Atalhos: [N] Novo Plantão · [Ctrl+K] Busca Rápida · [C] Calculadoras Clínicas
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       APLICAÇÃO PRINCIPAL (WORKSPACE CLÍNICO)
+       ========================================================= -->
+  <div id="appWorkspace" class="min-h-screen flex">
+
+    <!-- SIDEBAR DESKTOP -->
+    <aside class="no-print hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-30">
+      <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-teal-700 text-white flex items-center justify-center font-bold text-sm">PZ</div>
+          <div>
+            <div class="font-bold text-sm text-slate-900 dark:text-white leading-none">Plantão Zen</div>
+            <div class="text-[11px] font-mono text-slate-500 mt-1">Dr. Lucas Rosa</div>
+          </div>
+        </div>
+        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">OFFLINE OK</span>
+      </div>
+
+      <nav class="flex-1 p-3 space-y-1 overflow-y-auto" id="desktopNav">
+        <button data-tab="dashboard" onclick="switchTab('dashboard')" class="nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors">
+          <span class="flex items-center gap-2.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+            Visão Geral & HUD
+          </span>
+          <span id="navActiveBadge" class="hidden text-[10px] font-mono px-1.5 py-0.5 rounded bg-teal-600 text-white">ATIVO</span>
+        </button>
+
+        <button data-tab="escala" onclick="switchTab('escala')" class="nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors">
+          <span class="flex items-center gap-2.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Escalas & Recorrência
+          </span>
+          <span id="navShiftsCount" class="text-xs font-mono text-slate-400">0</span>
+        </button>
+
+        <button data-tab="trocas" onclick="switchTab('trocas')" class="nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors">
+          <span class="flex items-center gap-2.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            Trocas & Permutas
+          </span>
+          <span id="navSwapsCount" class="text-xs font-mono px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">0</span>
+        </button>
+
+        <button data-tab="equipe" onclick="switchTab('equipe')" class="nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors">
+          <span class="flex items-center gap-2.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Equipe & Sobreaviso
+          </span>
+        </button>
+
+        <button data-tab="portfolio" onclick="switchTab('portfolio')" class="nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors">
+          <span class="flex items-center gap-2.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Folha de Ponto & Portfólio
+          </span>
+        </button>
+
+        <button data-tab="calculadoras" onclick="switchTab('calculadoras')" class="nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors">
+          <span class="flex items-center gap-2.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8" y2="10.01"/><line x1="12" y1="10" x2="12" y2="10.01"/><line x1="16" y1="10" x2="16" y2="10.01"/><line x1="8" y1="14" x2="8" y2="14.01"/><line x1="12" y1="14" x2="12" y2="14.01"/><line x1="16" y1="14" x2="16" y2="14.01"/><line x1="8" y1="18" x2="12" y2="18"/><line x1="16" y1="18" x2="16" y2="18.01"/></svg>
+            Calculadoras Clínicas
+          </span>
+          <span class="text-[10px] font-mono text-slate-400">[C]</span>
+        </button>
+
+        <button data-tab="instituicoes" onclick="switchTab('instituicoes')" class="nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors">
+          <span class="flex items-center gap-2.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9v.01"/><path d="M9 12v.01"/><path d="M9 15v.01"/><path d="M9 18v.01"/></svg>
+            Hospitais & Backup
+          </span>
+        </button>
+      </nav>
+
+      <div class="p-3 border-t border-slate-200 dark:border-slate-800 space-y-2">
+        <div class="grid grid-cols-2 gap-1.5">
+          <button onclick="toggleTheme()" class="px-2.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-center gap-1.5 cursor-pointer">
+            <span id="themeLabel">Modo Noturno</span>
+          </button>
+          <button onclick="toggleLoginScreen(true)" class="px-2.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
+            Tela Login
+          </button>
+        </div>
+        <div class="text-[11px] font-mono text-slate-400 px-1 flex justify-between">
+          <span>CRM-RJ 52.104892-0</span>
+          <span>[N] Novo</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ÁREA DE CONTEÚDO PRINCIPAL -->
+    <div class="flex-1 lg:pl-64 flex flex-col min-w-0">
+
+      <!-- TOPBAR COMPACTA -->
+      <header class="no-print sticky top-0 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 py-3">
+        <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="lg:hidden w-7 h-7 rounded-md bg-teal-700 text-white flex items-center justify-center font-bold text-xs shrink-0">PZ</div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <h1 id="pageTitle" class="text-base sm:text-lg font-bold text-slate-900 dark:text-white truncate">Visão Geral Operacional</h1>
+                <span class="hidden sm:inline-block text-xs font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">Nov 2026</span>
+              </div>
+              <p id="pageSubtitle" class="text-xs text-slate-500 dark:text-slate-400 truncate">Quinta-feira, 19/11/2026 · Próximo turno às 19h00 na UTI Geral</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 shrink-0">
+            <button onclick="openSearchModal()" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
+              <span>Buscar escala, médico...</span>
+              <kbd class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500">Ctrl+K</kbd>
+            </button>
+
+            <button onclick="toggleTheme()" class="lg:hidden p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300" title="Alternar tema">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            </button>
+
+            <button onclick="openBlockModal()" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer">
+              Bloquear Período
+            </button>
+
+            <button onclick="openShiftModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold transition-colors cursor-pointer">
+              <span>+ Novo Plantão</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- CONTAINER DAS ABAS -->
+      <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+        <!-- =====================================================
+             ABA 1: VISÃO GERAL & HUD DE TURNO ATIVO
+             ===================================================== -->
+        <section id="tab-dashboard" class="tab-panel space-y-6">
+
+          <!-- HUD DE TURNO ATIVO (Dinâmico: mostra plantão em andamento ou próximo turno pronto para check-in) -->
+          <div id="activeShiftHudContainer"></div>
+
+          <!-- FAIXA DE INDICADORES OPERACIONAIS & TERMÔMETRO DE FADIGA -->
+          <div class="surface-card rounded-xl overflow-hidden">
+            <div class="grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-slate-200 dark:divide-slate-800">
+              <div class="p-4">
+                <div class="text-xs font-medium text-slate-500 dark:text-slate-400">Carga Horária (Novembro)</div>
+                <div class="mt-1 flex items-baseline gap-2">
+                  <span id="kpiMonthHours" class="text-2xl font-bold font-mono tabular-clinical text-slate-900 dark:text-white">0h</span>
+                  <span id="kpiMonthMeta" class="text-xs font-mono text-slate-500">/ 168h meta</span>
+                </div>
+                <div id="kpiShiftSplit" class="mt-1 text-[11px] font-mono text-slate-500">0h diurno · 0h noturno</div>
+              </div>
+
+              <div class="p-4">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Termômetro Semanal</span>
+                  <span id="fatigueBadge" class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">SEGURO</span>
+                </div>
+                <div class="mt-1 flex items-baseline gap-2">
+                  <span id="kpiWeekHours" class="text-2xl font-bold font-mono tabular-clinical text-slate-900 dark:text-white">0h</span>
+                  <span class="text-xs font-mono text-slate-500">/ 60h limite</span>
+                </div>
+                <div class="mt-2 w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                  <div id="fatigueBar" class="h-full bg-teal-600 transition-all duration-300" style="width: 0%"></div>
+                </div>
+              </div>
+
+              <div class="p-4">
+                <div class="text-xs font-medium text-slate-500 dark:text-slate-400">Sequência & Repouso</div>
+                <div class="mt-1 flex items-baseline gap-2">
+                  <span id="kpiNightStreak" class="text-2xl font-bold font-mono tabular-clinical text-slate-900 dark:text-white">0</span>
+                  <span class="text-xs text-slate-500">noites seguidas (máx)</span>
+                </div>
+                <div id="kpiMinRest" class="mt-1 text-[11px] font-mono text-slate-500">Menor intervalo: 12h</div>
+              </div>
+
+              <div class="p-4">
+                <div class="text-xs font-medium text-slate-500 dark:text-slate-400">Procedimentos no Mês</div>
+                <div class="mt-1 flex items-baseline gap-2">
+                  <span id="kpiProcCount" class="text-2xl font-bold font-mono tabular-clinical text-slate-900 dark:text-white">0</span>
+                  <span class="text-xs text-slate-500">registrados</span>
+                </div>
+                <div class="mt-1">
+                  <button onclick="switchTab('portfolio')" class="text-[11px] font-semibold text-teal-700 dark:text-teal-400 hover:underline cursor-pointer">
+                    Abrir folha de ponto →
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- GRADE PRINCIPAL: PRÓXIMOS PLANTÕES + BLOQUEIOS / SOBREAVISO RÁPIDO -->
+          <div class="grid lg:grid-cols-12 gap-6">
+            <!-- Lista Densa de Próximos Plantões -->
+            <div class="lg:col-span-8 surface-card rounded-xl overflow-hidden">
+              <div class="px-4 py-3.5 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h2 class="text-sm font-bold text-slate-900 dark:text-white">Agenda Operacional de Turnos</h2>
+                  <p class="text-xs text-slate-500">Inclui vínculos fixos recorrentes, coberturas e continuidade de equipe</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <select id="dashHospitalFilter" onchange="renderDashboard()" class="text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5 text-slate-700 dark:text-slate-200">
+                    <option value="ALL">Todas as unidades</option>
+                  </select>
+                </div>
+              </div>
+
+              <div id="dashShiftList" class="divide-y divide-slate-200 dark:divide-slate-800"></div>
+            </div>
+
+            <!-- Coluna Lateral: Bloqueios Ativos + Sobreaviso do Dia + Saldo de Permutas -->
+            <div class="lg:col-span-4 space-y-5">
+              <!-- Sobreaviso do Dia -->
+              <div class="surface-card rounded-xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Sobreaviso · Hoje (19/11)</h3>
+                  <button onclick="switchTab('equipe')" class="text-xs font-semibold text-teal-700 dark:text-teal-400 hover:underline cursor-pointer">Editar</button>
+                </div>
+                <div id="dashOnCallList" class="space-y-2.5"></div>
+              </div>
+
+              <!-- Bloqueios de Período -->
+              <div class="surface-card rounded-xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Bloqueios & Ausências</h3>
+                  <button onclick="openBlockModal()" class="text-xs font-semibold text-teal-700 dark:text-teal-400 hover:underline cursor-pointer">+ Bloquear</button>
+                </div>
+                <div id="dashBlocksList" class="space-y-2.5"></div>
+              </div>
+
+              <!-- Resumo Banco de Permutas -->
+              <div class="surface-card rounded-xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Banco de Permutas</h3>
+                  <button onclick="switchTab('trocas')" class="text-xs font-semibold text-teal-700 dark:text-teal-400 hover:underline cursor-pointer">Ver mural</button>
+                </div>
+                <div id="dashSwapBalanceList" class="space-y-2"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- =====================================================
+             ABA 2: ESCALAS, CALENDÁRIO & RECORRÊNCIA
+             ===================================================== -->
+        <section id="tab-escala" class="tab-panel hidden space-y-5">
+          <div class="surface-card rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+              <button id="btnViewCal" onclick="setScheduleView('calendar')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-700 text-white cursor-pointer">Grade Mensal</button>
+              <button id="btnViewList" onclick="setScheduleView('list')" class="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer">Lista Completa</button>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <select id="schedHospitalFilter" onchange="renderSchedule()" class="text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-slate-700 dark:text-slate-200">
+                <option value="ALL">Todas as instituições</option>
+              </select>
+              <button onclick="exportICS()" class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
+                Exportar .ICS (Agenda)
+              </button>
+              <button onclick="openShiftModal(true)" class="px-3 py-1.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold cursor-pointer">
+                + Gerar Escala Fixa Recorrente
+              </button>
+            </div>
+          </div>
+
+          <!-- Alertas de Conflito / Deslocamento / Bloqueio na Escala -->
+          <div id="scheduleAlertsBox" class="space-y-2"></div>
+
+          <!-- Calendário Mensal Novembro 2026 -->
+          <div id="scheduleCalendarContainer" class="surface-card rounded-xl overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <span class="text-sm font-bold text-slate-900 dark:text-white">Novembro 2026</span>
+              <div class="flex items-center gap-3 text-[11px] font-mono text-slate-500">
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-teal-600"></span> SD Diurno</span>
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-600"></span> SN Noturno</span>
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-500"></span> Bloqueio</span>
+              </div>
+            </div>
+            <div class="grid grid-cols-7 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-center text-[11px] font-mono font-semibold text-slate-500 py-2">
+              <div>DOM</div><div>SEG</div><div>TER</div><div>QUA</div><div>QUI</div><div>SEX</div><div>SÁB</div>
+            </div>
+            <div id="calendarGrid" class="grid grid-cols-7 divide-x divide-y divide-slate-200 dark:divide-slate-800"></div>
+          </div>
+
+          <!-- Lista Estruturada -->
+          <div id="scheduleListContainer" class="hidden surface-card rounded-xl overflow-hidden">
+            <div id="fullShiftList" class="divide-y divide-slate-200 dark:divide-slate-800"></div>
+          </div>
+        </section>
+
+        <!-- =====================================================
+             ABA 3: TROCAS, COBERTURAS & BANCO DE PERMUTAS
+             ===================================================== -->
+        <section id="tab-trocas" class="tab-panel hidden space-y-6">
+          <div class="grid lg:grid-cols-12 gap-6">
+            <!-- Mural de Vagas da Equipe -->
+            <div class="lg:col-span-7 space-y-4">
+              <div class="surface-card rounded-xl overflow-hidden">
+                <div class="px-4 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                  <div>
+                    <h2 class="text-sm font-bold text-slate-900 dark:text-white">Mural de Coberturas da Equipe</h2>
+                    <p class="text-xs text-slate-500">Validação automática de choque de horário, deslocamento e descanso de 11h</p>
+                  </div>
+                  <button onclick="openOfferSwapModal()" class="px-3 py-1.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold cursor-pointer">
+                    Disponibilizar Meu Turno
+                  </button>
+                </div>
+                <div id="openSwapsList" class="divide-y divide-slate-200 dark:divide-slate-800"></div>
+              </div>
+            </div>
+
+            <!-- Banco de Trocas Recíprocas ("Devo / Me Devem") -->
+            <div class="lg:col-span-5 space-y-4">
+              <div class="surface-card rounded-xl overflow-hidden">
+                <div class="px-4 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                  <div>
+                    <h2 class="text-sm font-bold text-slate-900 dark:text-white">Banco de Trocas ("Devo / Me Devem")</h2>
+                    <p class="text-xs text-slate-500">Controle de permutas diretas entre plantonistas</p>
+                  </div>
+                  <button onclick="openReciprocalModal()" class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
+                    + Registrar Permuta
+                  </button>
+                </div>
+                <div id="reciprocalLedgersList" class="divide-y divide-slate-200 dark:divide-slate-800"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- =====================================================
+             ABA 4: EQUIPE, CONTINUIDADE ASSISTENCIAL & SOBREAVISO
+             ===================================================== -->
+        <section id="tab-equipe" class="tab-panel hidden space-y-6">
+          <div class="grid lg:grid-cols-12 gap-6">
+            <!-- Escala Semanal do Setor & Continuidade -->
+            <div class="lg:col-span-7 surface-card rounded-xl overflow-hidden">
+              <div class="px-4 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                <div>
+                  <h2 class="text-sm font-bold text-slate-900 dark:text-white">Continuidade Assistencial · UTI Geral (Santa Casa)</h2>
+                  <p class="text-xs text-slate-500">Quem antecede e quem assume cada turno para passagem SBAR</p>
+                </div>
+              </div>
+              <div id="teamContinuityList" class="divide-y divide-slate-200 dark:divide-slate-800"></div>
+            </div>
+
+            <!-- Escala de Sobreaviso & Contatos Clínicos -->
+            <div class="lg:col-span-5 space-y-4">
+              <div class="surface-card rounded-xl overflow-hidden">
+                <div class="px-4 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                  <div>
+                    <h2 class="text-sm font-bold text-slate-900 dark:text-white">Sobreaviso das Especialidades</h2>
+                    <p class="text-xs text-slate-500">Plantão de retaguarda ativo em 19/11/2026</p>
+                  </div>
+                  <button onclick="openOnCallModal()" class="px-2.5 py-1.5 rounded-lg bg-teal-700 text-white text-xs font-semibold cursor-pointer">
+                    + Especialidade
+                  </button>
+                </div>
+                <div id="onCallFullList" class="divide-y divide-slate-200 dark:divide-slate-800"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- =====================================================
+             ABA 5: FOLHA DE PONTO & PORTFÓLIO DE PROCEDIMENTOS (PDF/PRINT)
+             ===================================================== -->
+        <section id="tab-portfolio" class="tab-panel hidden space-y-5">
+          <div class="no-print surface-card rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <select id="portfolioHospitalFilter" onchange="renderPortfolio()" class="text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-slate-700 dark:text-slate-200">
+                <option value="ALL">Todas as instituições</option>
+              </select>
+              <span class="text-xs font-mono text-slate-500">Competência: Novembro / 2026</span>
+            </div>
+            <button onclick="window.print()" class="px-4 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold cursor-pointer">
+              Imprimir / Salvar PDF Oficial
+            </button>
+          </div>
+
+          <!-- Cabeçalho Oficial para Impressão -->
+          <div class="surface-card rounded-xl p-6 space-y-6">
+            <div class="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+              <div>
+                <div class="text-xs font-mono uppercase tracking-wider text-teal-700 dark:text-teal-400">Relatório de Frequência Clínica & Produção Assistencial</div>
+                <h2 class="text-xl font-bold text-slate-900 dark:text-white mt-1">Dr. Lucas Rosa · CRM-RJ 52.104892-0</h2>
+                <p class="text-xs text-slate-500 mt-0.5">Competência: 01/11/2026 a 30/11/2026 · Documento gerado pelo Plantão Zen</p>
+              </div>
+              <div class="text-right font-mono text-xs text-slate-500">
+                <div>Emissão: 19/11/2026</div>
+                <div id="portfolioSummaryBadge" class="font-bold text-slate-900 dark:text-white mt-1">0h cumpridas · 0 procedimentos</div>
+              </div>
+            </div>
+
+            <!-- Resumo de Procedimentos Invasivos -->
+            <div>
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">1. Portfólio Consolidado de Procedimentos</h3>
+              <div id="portfolioProcGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"></div>
+            </div>
+
+            <!-- Tabela Auditada de Frequência (Folha de Ponto) -->
+            <div>
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">2. Registro Cronológico de Plantões e Auditoria de Ponto</h3>
+              <div class="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
+                <table class="w-full text-left text-xs">
+                  <thead class="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-mono border-b border-slate-200 dark:border-slate-800">
+                    <tr>
+                      <th class="py-2.5 px-3">Data</th>
+                      <th class="py-2.5 px-3">Instituição / Setor</th>
+                      <th class="py-2.5 px-3">Turno</th>
+                      <th class="py-2.5 px-3">Check-in / Out</th>
+                      <th class="py-2.5 px-3">Procedimentos</th>
+                      <th class="py-2.5 px-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="portfolioTableBody" class="divide-y divide-slate-200 dark:divide-slate-800"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- =====================================================
+             ABA 6: CALCULADORAS DE CABECEIRA OFFLINE
+             ===================================================== -->
+        <section id="tab-calculadoras" class="tab-panel hidden space-y-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-base font-bold text-slate-900 dark:text-white">Calculadoras Clínicas de Cabeceira (100% Offline)</h2>
+              <p class="text-xs text-slate-500">Ferramentas rápidas para terapia intensiva e emergência sem dependência de rede</p>
+            </div>
+            <span class="text-xs font-mono px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Modo Local Ativo</span>
+          </div>
+
+          <div class="grid md:grid-cols-2 gap-6">
+            <!-- 1. Drogas Vasoativas (DVA) -->
+            <div class="surface-card rounded-xl p-5 space-y-4">
+              <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+                <div>
+                  <h3 class="text-sm font-bold text-slate-900 dark:text-white">1. Infusão de Drogas Vasoativas (DVA)</h3>
+                  <p class="text-xs text-slate-500">Conversão mcg/kg/min → mL/h em bomba de infusão</p>
+                </div>
+                <span class="text-[11px] font-mono text-teal-700 dark:text-teal-400">BIC</span>
+              </div>
+
+              <div class="grid grid-cols-3 gap-3">
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Droga / Solução</label>
+                  <select id="dvaDrug" onchange="calcDVA()" class="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2">
+                    <option value="64">Noradrenalina (16mg/250mL = 64 mcg/mL)</option>
+                    <option value="128">Noradrenalina Dobrada (32mg/250mL = 128 mcg/mL)</option>
+                    <option value="1000">Dobutamina (250mg/250mL = 1000 mcg/mL)</option>
+                    <option value="200">Nitroprussiato (50mg/250mL = 200 mcg/mL)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Peso (kg)</label>
+                  <input type="number" id="dvaWeight" value="70" min="1" max="300" oninput="calcDVA()" class="w-full text-xs font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2" />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Dose (mcg/kg/min)</label>
+                  <input type="number" id="dvaDose" value="0.15" step="0.01" min="0" oninput="calcDVA()" class="w-full text-xs font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2" />
+                </div>
+              </div>
+
+              <div class="p-3.5 rounded-lg bg-teal-50/70 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 flex items-center justify-between">
+                <div>
+                  <div class="text-[11px] font-mono text-teal-800 dark:text-teal-300">VAZÃO NA BOMBA</div>
+                  <div id="dvaResult" class="text-xl font-bold font-mono tabular-clinical text-teal-900 dark:text-teal-200">9.8 mL/h</div>
+                </div>
+                <div id="dvaNote" class="text-right text-[11px] font-mono text-slate-600 dark:text-slate-400">
+                  630 mcg/h · Conc: 64 mcg/mL
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Sequência Rápida de Intubação (SRI) -->
+            <div class="surface-card rounded-xl p-5 space-y-4">
+              <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+                <div>
+                  <h3 class="text-sm font-bold text-slate-900 dark:text-white">2. Sequência Rápida de Intubação (SRI)</h3>
+                  <p class="text-xs text-slate-500">Doses e volumes prontos para aspiração por peso</p>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[11px] text-slate-500">Peso:</span>
+                  <input type="number" id="sriWeight" value="75" min="5" max="250" oninput="calcSRI()" class="w-16 text-xs font-mono rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1" />
+                  <span class="text-[11px] font-mono text-slate-500">kg</span>
+                </div>
+              </div>
+
+              <div id="sriTable" class="space-y-2 text-xs font-mono"></div>
+            </div>
+
+            <!-- 3. Taxa de Filtração Glomerular (CKD-EPI 2021) -->
+            <div class="surface-card rounded-xl p-5 space-y-4">
+              <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+                <div>
+                  <h3 class="text-sm font-bold text-slate-900 dark:text-white">3. TFG Estimada (CKD-EPI 2021)</h3>
+                  <p class="text-xs text-slate-500">Equação sem fator racial para ajuste de antimicrobianos</p>
+                </div>
+                <span class="text-[11px] font-mono text-slate-500">Nefro</span>
+              </div>
+
+              <div class="grid grid-cols-3 gap-3">
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Creatinina (mg/dL)</label>
+                  <input type="number" id="ckdCr" value="1.4" step="0.1" min="0.1" oninput="calcCKD()" class="w-full text-xs font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2" />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Idade (anos)</label>
+                  <input type="number" id="ckdAge" value="62" min="18" max="110" oninput="calcCKD()" class="w-full text-xs font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2" />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Sexo Biológico</label>
+                  <select id="ckdSex" onchange="calcCKD()" class="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2">
+                    <option value="M">Masculino</option>
+                    <option value="F">Feminino</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                <div>
+                  <div class="text-[11px] font-mono text-slate-500">eTFG (CKD-EPI)</div>
+                  <div id="ckdResult" class="text-xl font-bold font-mono tabular-clinical text-slate-900 dark:text-white">55 mL/min/1,73m²</div>
+                </div>
+                <span id="ckdStage" class="text-xs font-mono font-semibold px-2.5 py-1 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">G3a · Discreta/Moderada</span>
+              </div>
+            </div>
+
+            <!-- 4. Sódio Corrigido pela Glicemia & Déficit -->
+            <div class="surface-card rounded-xl p-5 space-y-4">
+              <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+                <div>
+                  <h3 class="text-sm font-bold text-slate-900 dark:text-white">4. Sódio Corrigido & Adrogué-Madias</h3>
+                  <p class="text-xs text-slate-500">Correção pela glicemia (Katz) e variação por 1L de solução</p>
+                </div>
+                <span class="text-[11px] font-mono text-slate-500">Hidroeletrolítico</span>
+              </div>
+
+              <div class="grid grid-cols-3 gap-3">
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Na+ Sérico (mEq/L)</label>
+                  <input type="number" id="naVal" value="126" oninput="calcSodium()" class="w-full text-xs font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2" />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Glicemia (mg/dL)</label>
+                  <input type="number" id="naGlu" value="420" oninput="calcSodium()" class="w-full text-xs font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2" />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Peso (kg)</label>
+                  <input type="number" id="naWeight" value="70" oninput="calcSodium()" class="w-full text-xs font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2" />
+                </div>
+              </div>
+
+              <div class="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                <div>
+                  <div class="text-[11px] font-mono text-slate-500">Na+ CORRIGIDO (KATZ)</div>
+                  <div id="naCorrected" class="text-xl font-bold font-mono tabular-clinical text-slate-900 dark:text-white">131.1 mEq/L</div>
+                </div>
+                <div id="naInfusion" class="text-right text-[11px] font-mono text-slate-600 dark:text-slate-400">
+                  SF 0,9%: +5.5 mEq/L<br/>NaCl 3%: +9.0 mEq/L
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- =====================================================
+             ABA 7: HOSPITAIS, RAMAIS, DESLOCAMENTO & BACKUP OFFLINE
+             ===================================================== -->
+        <section id="tab-instituicoes" class="tab-panel hidden space-y-6">
+          <div class="grid lg:grid-cols-12 gap-6">
+            <!-- Lista de Hospitais e Ramais Internos -->
+            <div class="lg:col-span-8 surface-card rounded-xl overflow-hidden">
+              <div class="px-4 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                <div>
+                  <h2 class="text-sm font-bold text-slate-900 dark:text-white">Instituições Credenciadas & Diretório de Ramais</h2>
+                  <p class="text-xs text-slate-500">Tempo de deslocamento entre unidades e telefones internos rápidos</p>
+                </div>
+                <button onclick="openHospitalModal()" class="px-3 py-1.5 rounded-lg bg-teal-700 text-white text-xs font-semibold cursor-pointer">
+                  + Nova Unidade
+                </button>
+              </div>
+              <div id="hospitalsDirectoryList" class="divide-y divide-slate-200 dark:divide-slate-800"></div>
+            </div>
+
+            <!-- Parâmetros de Segurança & Backup JSON Offline -->
+            <div class="lg:col-span-4 space-y-4">
+              <div class="surface-card rounded-xl p-4 space-y-3">
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white">Regras de Segurança & Fadiga</h3>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Meta Mensal de Horas</label>
+                  <input type="number" id="cfgMonthMeta" value="168" onchange="saveSettings()" class="w-full text-xs font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Limite Semanal de Alerta (h)</label>
+                  <input type="number" id="cfgWeekLimit" value="60" onchange="saveSettings()" class="w-full text-xs font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Margem Mínima Deslocamento entre Hospitais (min)</label>
+                  <input type="number" id="cfgTravelBuffer" value="45" onchange="saveSettings()" class="w-full text-xs font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2" />
+                </div>
+              </div>
+
+              <div class="surface-card rounded-xl p-4 space-y-3">
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white">Backup Offline & Portabilidade</h3>
+                <p class="text-xs text-slate-500">Seus dados ficam gravados localmente no navegador. Exporte um arquivo JSON para backup ou transferência de dispositivo.</p>
+                <div class="flex flex-col gap-2">
+                  <button onclick="exportJSONBackup()" class="w-full py-2 px-3 rounded-lg bg-slate-900 dark:bg-slate-700 text-white text-xs font-semibold cursor-pointer">
+                    Baixar Backup JSON (.json)
+                  </button>
+                  <label class="w-full py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-700 text-center text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
+                    Restaurar Backup JSON
+                    <input type="file" accept=".json" onchange="importJSONBackup(event)" class="hidden" />
+                  </label>
+                  <button onclick="resetDemoData()" class="w-full py-1.5 px-3 rounded-lg text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer">
+                    Restaurar dados iniciais de demonstração
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       BARRA DE NAVEGAÇÃO INFERIOR MOBILE-FIRST (Uso com uma mão)
+       ========================================================= -->
+  <nav class="no-print lg:hidden fixed bottom-0 inset-x-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 z-30 grid grid-cols-5 py-1.5 px-1">
+    <button onclick="switchTab('dashboard')" data-mob="dashboard" class="mob-btn flex flex-col items-center justify-center py-1 text-[10px] font-semibold text-teal-700 dark:text-teal-400">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+      <span>HUD</span>
+    </button>
+    <button onclick="switchTab('escala')" data-mob="escala" class="mob-btn flex flex-col items-center justify-center py-1 text-[10px] font-medium text-slate-500">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span>Escala</span>
+    </button>
+    <button onclick="switchTab('trocas')" data-mob="trocas" class="mob-btn flex flex-col items-center justify-center py-1 text-[10px] font-medium text-slate-500">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+      <span>Trocas</span>
+    </button>
+    <button onclick="switchTab('calculadoras')" data-mob="calculadoras" class="mob-btn flex flex-col items-center justify-center py-1 text-[10px] font-medium text-slate-500">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="14" x2="16" y2="14"/></svg>
+      <span>Cálculos</span>
+    </button>
+    <button onclick="switchTab('portfolio')" data-mob="portfolio" class="mob-btn flex flex-col items-center justify-center py-1 text-[10px] font-medium text-slate-500">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <span>Ponto/PDF</span>
+    </button>
+  </nav>
+
+  <!-- =========================================================
+       MODAIS OPERACIONAIS
+       ========================================================= -->
+
+  <!-- MODAL 1: NOVO PLANTÃO & ESCALA RECORRENTE -->
+  <div id="shiftModal" class="hidden fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+        <h3 class="text-base font-bold text-slate-900 dark:text-white">Lançar Plantão / Escala Fixa</h3>
+        <button onclick="closeModal('shiftModal')" class="text-slate-400 hover:text-slate-600 text-lg leading-none cursor-pointer">&times;</button>
+      </div>
+
+      <form onsubmit="saveNewShift(event)" class="space-y-3.5">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Instituição</label>
+            <select id="mShiftHospital" onchange="validateShiftPreview()" class="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Setor Clínico</label>
+            <input type="text" id="mShiftSector" value="UTI Geral" required class="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Data Inicial</label>
+            <input type="date" id="mShiftDate" value="2026-11-24" onchange="validateShiftPreview()" required class="w-full text-xs font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Turno</label>
+            <select id="mShiftType" onchange="validateShiftPreview()" class="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2">
+              <option value="SD">SD 12h (07:00 - 19:00)</option>
+              <option value="SN">SN 12h (19:00 - 07:00)</option>
+              <option value="24H">Plantão 24h (07:00 - 07:00)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Vínculo</label>
+            <select id="mShiftRecurrence" onchange="validateShiftPreview()" class="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2">
+              <option value="SINGLE">Avulso / Cobertura</option>
+              <option value="WEEKLY_4">Fixo Semanal (4 semanas)</option>
+              <option value="BIWEEKLY_3">Quinzenal / FDS Alternado</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Médico Anterior (Passagem)</label>
+            <input type="text" id="mShiftPrevDoc" value="Dra. Camila Mendes" class="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Médico Seguinte (Recebe)</label>
+            <input type="text" id="mShiftNextDoc" value="Dr. Rafael Tavares" class="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2" />
+          </div>
+        </div>
+
+        <!-- Caixa de Validação em Tempo Real (Conflito, Deslocamento, Descanso 11h, Bloqueio) -->
+        <div id="mShiftValidationBox" class="hidden p-3 rounded-lg text-xs"></div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeModal('shiftModal')" class="px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold cursor-pointer">Cancelar</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold cursor-pointer">Confirmar na Escala</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 2: CHECK-IN COM CHECKLIST RÁPIDO DE ASSUNÇÃO DE SETOR -->
+  <div id="checkinModal" class="hidden fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl">
+      <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+        <div>
+          <h3 class="text-base font-bold text-slate-900 dark:text-white">Assunção de Plantão & Checklist</h3>
+          <p id="checkinShiftInfo" class="text-xs text-slate-500 mt-0.5"></p>
+        </div>
+        <button onclick="closeModal('checkinModal')" class="text-slate-400 hover:text-slate-600 text-lg cursor-pointer">&times;</button>
+      </div>
+
+      <div class="space-y-2">
+        <div class="text-xs font-semibold text-slate-700 dark:text-slate-300">Conferência Rápida de Setor (Auditoria):</div>
+        <label class="flex items-center gap-2.5 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs cursor-pointer">
+          <input type="checkbox" class="chk-assuncao rounded text-teal-600" checked />
+          <span>Lacre do carro de parada e desfibrilador conferidos</span>
+        </label>
+        <label class="flex items-center gap-2.5 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs cursor-pointer">
+          <input type="checkbox" class="chk-assuncao rounded text-teal-600" checked />
+          <span>Laringoscópio, lâminas e rede de vácuo/oxigênio testados</span>
+        </label>
+        <label class="flex items-center gap-2.5 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs cursor-pointer">
+          <input type="checkbox" class="chk-assuncao rounded text-teal-600" checked />
+          <span>Chave de psicotrópicos/controlados recebida</span>
+        </label>
+        <label class="flex items-center gap-2.5 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs cursor-pointer">
+          <input type="checkbox" class="chk-assuncao rounded text-teal-600" checked />
+          <span>Pendências de leitos críticos revisadas com colega anterior</span>
+        </label>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('checkinModal')" class="px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold cursor-pointer">Cancelar</button>
+        <button onclick="confirmCheckin()" class="px-4 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold cursor-pointer">Registrar Check-in Agora</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: CHECK-OUT COM PASSAGEM SBAR ESTRUTURADA & PROCEDIMENTOS -->
+  <div id="checkoutModal" class="hidden fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-xl w-full p-5 space-y-4 shadow-xl max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+        <div>
+          <h3 class="text-base font-bold text-slate-900 dark:text-white">Fechamento de Turno & Passagem SBAR</h3>
+          <p id="checkoutShiftInfo" class="text-xs text-slate-500 mt-0.5"></p>
+        </div>
+        <button onclick="closeModal('checkoutModal')" class="text-slate-400 hover:text-slate-600 text-lg cursor-pointer">&times;</button>
+      </div>
+
+      <!-- Procedimentos realizados -->
+      <div>
+        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Procedimentos & Variáveis do Turno</label>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+          <label class="flex items-center gap-2 p-2 rounded border border-slate-200 dark:border-slate-800">
+            <input type="checkbox" value="Acesso Venoso Central" class="chk-proc" /> Acesso Central
+          </label>
+          <label class="flex items-center gap-2 p-2 rounded border border-slate-200 dark:border-slate-800">
+            <input type="checkbox" value="Intubação Orotraqueal" class="chk-proc" /> Intubação (IOT)
+          </label>
+          <label class="flex items-center gap-2 p-2 rounded border border-slate-200 dark:border-slate-800">
+            <input type="checkbox" value="POCUS / Ecocardiografia" class="chk-proc" /> POCUS Beira-Leito
+          </label>
+          <label class="flex items-center gap-2 p-2 rounded border border-slate-200 dark:border-slate-800">
+            <input type="checkbox" value="Cardioversão / RCP" class="chk-proc" /> Cardioversão / RCP
+          </label>
+          <label class="flex items-center gap-2 p-2 rounded border border-slate-200 dark:border-slate-800">
+            <input type="checkbox" value="Drenagem / Paracentese" class="chk-proc" /> Drenagem / Punção
+          </label>
+          <label class="flex items-center gap-2 p-2 rounded border border-slate-200 dark:border-slate-800">
+            <input type="checkbox" value="Adicional Feriado / Extra" class="chk-proc" /> Adicional Feriado
+          </label>
+        </div>
+      </div>
+
+      <!-- Passagem Estruturada SBAR -->
+      <div class="space-y-2.5">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-700 dark:text-slate-300">Relatório Estruturado SBAR</span>
+          <button type="button" onclick="copySBARToWhatsApp()" class="text-xs font-semibold text-teal-700 dark:text-teal-400 hover:underline cursor-pointer">
+            Copiar SBAR para WhatsApp
+          </button>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-[11px] font-mono font-semibold text-rose-700 dark:text-rose-400 mb-1">S — Situação (Leitos Críticos / Instáveis)</label>
+            <textarea id="sbarS" rows="2" placeholder="Ex: Leito 04 em Noradrenalina 0,25 mcg/kg/min, aguarda vaga hemodiálise." class="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2"></textarea>
+          </div>
+          <div>
+            <label class="block text-[11px] font-mono font-semibold text-slate-700 dark:text-slate-300 mb-1">B — Background (Admissões & Altas)</label>
+            <textarea id="sbarB" rows="2" placeholder="Ex: 2 admissões do PS (sepse pulmonar e IAMCSST pós-trombólise)." class="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2"></textarea>
+          </div>
+          <div>
+            <label class="block text-[11px] font-mono font-semibold text-amber-700 dark:text-amber-400 mb-1">A — Avaliação (Exames & Pareceres Pendentes)</label>
+            <textarea id="sbarA" rows="2" placeholder="Ex: Checar hemoculturas Leito 02 e TC de crânio Leito 07 às 08h." class="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2"></textarea>
+          </div>
+          <div>
+            <label class="block text-[11px] font-mono font-semibold text-teal-700 dark:text-teal-400 mb-1">R — Recomendação (Condutas Próximo Turno)</label>
+            <textarea id="sbarR" rows="2" placeholder="Ex: Desmame ventilatório Leito 01 se gasometria 07h estável." class="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap justify-between items-center gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+        <button type="button" onclick="copySBARToWhatsApp()" class="px-3 py-2 rounded-lg border border-teal-600 text-teal-700 dark:text-teal-300 text-xs font-semibold cursor-pointer">
+          Copiar WhatsApp
+        </button>
+        <div class="flex gap-2">
+          <button type="button" onclick="closeModal('checkoutModal')" class="px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold cursor-pointer">Cancelar</button>
+          <button type="button" onclick="confirmCheckout()" class="px-4 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold cursor-pointer">Encerrar Plantão</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: BLOQUEIO DE PERÍODO (FÉRIAS / CONGRESSO / FOLGA) -->
+  <div id="blockModal" class="hidden fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl">
+      <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+        <h3 class="text-base font-bold text-slate-900 dark:text-white">Bloquear Período (Férias / Congresso)</h3>
+        <button onclick="closeModal('blockModal')" class="text-slate-400 hover:text-slate-600 text-lg cursor-pointer">&times;</button>
+      </div>
+      <form onsubmit="saveBlockPeriod(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Motivo do Bloqueio</label>
+          <input type="text" id="bReason" value="Congresso Brasileiro de Medicina Intensiva" required class="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Data Início</label>
+            <input type="date" id="bStart" value="2026-11-26" required class="w-full text-xs font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Data Fim</label>
+            <input type="date" id="bEnd" value="2026-11-28" required class="w-full text-xs font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-2" />
+          </div>
+        </div>
+        <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 pt-1">
+          <input type="checkbox" id="bAutoSwap" checked />
+          <span>Enviar automaticamente plantões fixos afetados para o Mural de Trocas</span>
+        </label>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeModal('blockModal')" class="px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold cursor-pointer">Cancelar</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-teal-700 text-white text-xs font-semibold cursor-pointer">Salvar Bloqueio</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 5: BUSCA GLOBAL (Ctrl+K) -->
+  <div id="searchModal" class="hidden fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-start justify-center pt-20 p-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full p-4 space-y-3 shadow-xl">
+      <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2.5">
+        <input type="text" id="globalSearchInput" oninput="runGlobalSearch()" placeholder="Buscar por hospital, setor, colega ou ramal..." class="w-full text-sm bg-transparent focus:outline-none text-slate-900 dark:text-white" />
+        <button onclick="closeModal('searchModal')" class="text-xs font-mono text-slate-400 px-2 py-1 rounded border border-slate-200 dark:border-slate-700">ESC</button>
+      </div>
+      <div id="globalSearchResults" class="max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 text-xs"></div>
+    </div>
+  </div>
+
+  <!-- TOAST DE FEEDBACK -->
+  <div id="toastBox" class="fixed bottom-20 lg:bottom-5 right-5 z-50 hidden">
+    <div id="toastMsg" class="px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-teal-700 text-white text-xs font-medium shadow-lg border border-slate-700 dark:border-teal-500"></div>
+  </div>
+
+  <!-- =========================================================
+       ENGINE JAVASCRIPT (ESTADO, REGRAS CLÍNICAS & RENDERIZAÇÃO)
+       ========================================================= -->
+  <script>
+    const STORAGE_KEY = 'plantao_zen_clinical_v3';
+
+    const DEFAULT_STATE = {
+      settings: {
+        monthMeta: 168,
+        weekLimit: 60,
+        travelBufferMin: 45,
+        darkMode: false
+      },
+      hospitals: [
+        {
+          id: 'h1',
+          name: 'Hospital Santa Casa',
+          city: 'Rio de Janeiro',
+          travelMin: 25,
+          ramais: 'UTI: 4102 · Lab: 4210 · Banco Sangue: 4305 · TC/Rx: 4418 · NIR: 4012'
+        },
+        {
+          id: 'h2',
+          name: 'Hospital São Lucas',
+          city: 'Niterói',
+          travelMin: 50,
+          ramais: 'PS Adulto: 2100 · Farmácia: 2180 · Coordenação: 2005 · CC: 2310'
+        },
+        {
+          id: 'h3',
+          name: 'InstitutoCardio Barra',
+          city: 'Rio de Janeiro',
+          travelMin: 40,
+          ramais: 'UCO: 8810 · Hemodinâmica: 8840 · Eco: 8822'
+        }
+      ],
+      shifts: [
+        {
+          id: 's1',
+          date: '2026-11-04',
+          hospitalId: 'h1',
+          sector: 'UTI Geral',
+          type: 'SN',
+          start: '19:00',
+          end: '07:00',
+          hours: 12,
+          fixed: true,
+          status: 'COMPLETED',
+          checkinAt: '04/11 18:54',
+          checkoutAt: '05/11 07:08',
+          prevDoc: 'Dra. Camila Mendes',
+          nextDoc: 'Dr. Rafael Tavares',
+          procedures: ['Acesso Venoso Central', 'POCUS / Ecocardiografia'],
+          sbar: 'S: 10 leitos ocupados, 2 em VM. B: Alta para enfermaria Leito 03. A: Culturas em andamento. R: Manter desmame Leito 06.'
+        },
+        {
+          id: 's2',
+          date: '2026-11-11',
+          hospitalId: 'h1',
+          sector: 'UTI Geral',
+          type: 'SN',
+          start: '19:00',
+          end: '07:00',
+          hours: 12,
+          fixed: true,
+          status: 'COMPLETED',
+          checkinAt: '11/11 18:57',
+          checkoutAt: '12/11 07:05',
+          prevDoc: 'Dra. Camila Mendes',
+          nextDoc: 'Dr. Rafael Tavares',
+          procedures: ['Intubação Orotraqueal', 'Acesso Venoso Central'],
+          sbar: 'S: Leito 08 admitido por choque séptico. B: Iniciado antibiótico 1ª hora. A: Lactato seriando. R: Reavaliar volemia.'
+        },
+        {
+          id: 's3',
+          date: '2026-11-15',
+          hospitalId: 'h2',
+          sector: 'Sala Vermelha PS',
+          type: 'SD',
+          start: '07:00',
+          end: '19:00',
+          hours: 12,
+          fixed: false,
+          status: 'COMPLETED',
+          checkinAt: '15/11 06:55',
+          checkoutAt: '15/11 19:10',
+          prevDoc: 'Dr. Bruno Nogueira',
+          nextDoc: 'Dra. Fernanda Lima',
+          procedures: ['Cardioversão / RCP', 'POCUS / Ecocardiografia'],
+          sbar: 'S: Fluxo intenso PS, 1 cardioversão sincronizada com sucesso. B: Transferido para UCO. A: Sem pendências críticas. R: Seguir protocolo dor torácica.'
+        },
+        {
+          id: 's4',
+          date: '2026-11-18',
+          hospitalId: 'h1',
+          sector: 'UTI Geral',
+          type: 'SN',
+          start: '19:00',
+          end: '07:00',
+          hours: 12,
+          fixed: true,
+          status: 'COMPLETED',
+          checkinAt: '18/11 18:58',
+          checkoutAt: '19/11 07:04',
+          prevDoc: 'Dra. Camila Mendes',
+          nextDoc: 'Dr. Rafael Tavares',
+          procedures: ['Drenagem / Paracentese'],
+          sbar: 'S: Estável durante madrugada. B: Paracentese alívio Leito 05 sem intercorrências. A: Albumina prescrita. R: Seguir balanço hídrico.'
+        },
+        {
+          id: 's5',
+          date: '2026-11-19',
+          hospitalId: 'h1',
+          sector: 'UTI Geral',
+          type: 'SN',
+          start: '19:00',
+          end: '07:00',
+          hours: 12,
+          fixed: true,
+          status: 'SCHEDULED',
+          checkinAt: null,
+          checkoutAt: null,
+          prevDoc: 'Dra. Camila Mendes',
+          nextDoc: 'Dr. Rafael Tavares',
+          procedures: [],
+          sbar: ''
+        },
+        {
+          id: 's6',
+          date: '2026-11-21',
+          hospitalId: 'h3',
+          sector: 'Unidade Coronariana',
+          type: 'SD',
+          start: '07:00',
+          end: '19:00',
+          hours: 12,
+          fixed: false,
+          status: 'SCHEDULED',
+          checkinAt: null,
+          checkoutAt: null,
+          prevDoc: 'Dr. Henrique Costa',
+          nextDoc: 'Dra. Juliana Paes',
+          procedures: [],
+          sbar: ''
+        },
+        {
+          id: 's7',
+          date: '2026-11-22',
+          hospitalId: 'h2',
+          sector: 'Sala Vermelha PS',
+          type: 'SD',
+          start: '07:00',
+          end: '19:00',
+          hours: 12,
+          fixed: false,
+          status: 'SCHEDULED',
+          checkinAt: null,
+          checkoutAt: null,
+          prevDoc: 'Dr. Bruno Nogueira',
+          nextDoc: 'Dra. Fernanda Lima',
+          procedures: [],
+          sbar: ''
+        },
+        {
+          id: 's8',
+          date: '2026-11-25',
+          hospitalId: 'h1',
+          sector: 'UTI Geral',
+          type: 'SN',
+          start: '19:00',
+          end: '07:00',
+          hours: 12,
+          fixed: true,
+          status: 'SCHEDULED',
+          checkinAt: null,
+          checkoutAt: null,
+          prevDoc: 'Dra. Camila Mendes',
+          nextDoc: 'Dr. Rafael Tavares',
+          procedures: [],
+          sbar: ''
+        }
+      ],
+      openSwaps: [
+        {
+          id: 'sw1',
+          colleague: 'Dra. Fernanda Lima',
+          hospitalId: 'h2',
+          sector: 'Sala Vermelha PS',
+          date: '2026-11-20',
+          type: 'SD',
+          start: '07:00',
+          end: '19:00',
+          hours: 12,
+          note: 'Troca direta ou cobertura avulsa — devolvo em dezembro.'
+        },
+        {
+          id: 'sw2',
+          colleague: 'Dr. Rafael Tavares',
+          hospitalId: 'h1',
+          sector: 'UTI Geral',
+          date: '2026-11-29',
+          type: 'SN',
+          start: '19:00',
+          end: '07:00',
+          hours: 12,
+          note: 'Permuta por plantão noturno na primeira quinzena de dezembro.'
+        }
+      ],
+      reciprocalLedgers: [
+        { id: 'rl1', colleague: 'Dra. Camila Mendes', hospital: 'Hospital Santa Casa', balance: 1, lastNote: 'Cobri SN 12h dela em 02/11 (Me deve 1 turno)' },
+        { id: 'rl2', colleague: 'Dr. Bruno Nogueira', hospital: 'Hospital São Lucas', balance: -1, lastNote: 'Ele cobriu meu SD em 10/11 (Devo 1 turno)' },
+        { id: 'rl3', colleague: 'Dr. Henrique Costa', hospital: 'InstitutoCardio Barra', balance: 0, lastNote: 'Permutas quitadas em 14/11' }
+      ],
+      blocks: [
+        { id: 'bl1', reason: 'Congresso Brasileiro de Medicina Intensiva', start: '2026-11-27', end: '2026-11-28' }
+      ],
+      onCall: [
+        { id: 'oc1', specialty: 'Cirurgia Geral', doctor: 'Dr. Marcelo Andrade', phone: '(21) 99812-4410', unit: 'Santa Casa' },
+        { id: 'oc2', specialty: 'Hemodinâmica / Cardio', doctor: 'Dra. Patrícia Vasconcelos', phone: '(21) 99744-1120', unit: 'InstitutoCardio' },
+        { id: 'oc3', specialty: 'Ortopedia & Trauma', doctor: 'Dr. Thiago Rezende', phone: '(21) 99601-8832', unit: 'São Lucas' },
+        { id: 'oc4', specialty: 'Neurocirurgia', doctor: 'Dr. Eduardo Silveira', phone: '(21) 99519-3021', unit: 'Santa Casa' }
+      ]
+    };
+
+    let state = loadState();
+    let currentTab = 'dashboard';
+    let scheduleView = 'calendar';
+    let selectedShiftId = null;
+    let hudTimerInterval = null;
+    let activeHudCounters = { atendimentos: 4, procedimentos: 1 };
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return JSON.parse(JSON.stringify(DEFAULT_STATE));
+        return Object.assign(JSON.parse(JSON.stringify(DEFAULT_STATE)), JSON.parse(raw));
+      } catch (e) {
+        return JSON.parse(JSON.stringify(DEFAULT_STATE));
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      refreshAll();
+    }
+
+    function showToast(msg) {
+      const box = document.getElementById('toastBox');
+      const el = document.getElementById('toastMsg');
+      el.textContent = msg;
+      box.classList.remove('hidden');
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => box.classList.add('hidden'), 3200);
+    }
+
+    function getHospital(id) {
+      return state.hospitals.find(h => h.id === id) || { name: 'Unidade', travelMin: 30, ramais: '' };
+    }
+
+    function formatDateBR(iso) {
+      if (!iso) return '';
+      const [y, m, d] = iso.split('-');
+      return `${d}/${m}/${y}`;
+    }
+
+    // =========================================================
+    // MOTOR DE VALIDAÇÃO DE CONFLITO, DESLOCAMENTO E DESCANSO 11H
+    // =========================================================
+    function shiftToTimestamps(shift) {
+      const [y, m, d] = shift.date.split('-').map(Number);
+      const [sh, sm] = shift.start.split(':').map(Number);
+      const startMs = new Date(y, m - 1, d, sh, sm).getTime();
+      const endMs = startMs + shift.hours * 3600 * 1000;
+      return { startMs, endMs };
+    }
+
+    function analyzeCandidateShift(candidate) {
+      const issues = [];
+      const candRange = shiftToTimestamps(candidate);
+      const candHosp = getHospital(candidate.hospitalId);
+      const bufferMin = Number(state.settings.travelBufferMin || 45);
+
+      // 1. Verifica bloqueio de período
+      for (const blk of state.blocks) {
+        if (candidate.date >= blk.start && candidate.date <= blk.end) {
+          issues.push({
+            level: 'error',
+            text: `Período bloqueado (${blk.reason}: ${formatDateBR(blk.start)} a ${formatDateBR(blk.end)}).`
+          });
+        }
+      }
+
+      // 2. Verifica sobreposição, deslocamento entre hospitais e descanso interjornada (11h)
+      for (const existing of state.shifts) {
+        if (existing.id === candidate.id) continue;
+        const exRange = shiftToTimestamps(existing);
+        const exHosp = getHospital(existing.hospitalId);
+
+        // Sobreposição direta
+        if (candRange.startMs < exRange.endMs && candRange.endMs > exRange.startMs) {
+          issues.push({
+            level: 'error',
+            text: `Choque de horário com plantão em ${exHosp.name} (${formatDateBR(existing.date)} ${existing.start}-${existing.end}).`
+          });
+          continue;
+        }
+
+        // Intervalo entre turnos
+        const gapAfterExistingMin = (candRange.startMs - exRange.endMs) / 60000;
+        const gapBeforeExistingMin = (exRange.startMs - candRange.endMs) / 60000;
+
+        if (gapAfterExistingMin >= 0 && gapAfterExistingMin < 660) {
+          if (existing.hospitalId !== candidate.hospitalId && gapAfterExistingMin < Math.max(bufferMin, candHosp.travelMin)) {
+            issues.push({
+              level: 'error',
+              text: `Alerta de deslocamento: apenas ${Math.round(gapAfterExistingMin)} min entre saída de ${exHosp.name} e entrada em ${candHosp.name} (mínimo ${Math.max(bufferMin, candHosp.travelMin)} min).`
+            });
+          } else {
+            issues.push({
+              level: 'warn',
+              text: `Descanso interjornada reduzido: ${(gapAfterExistingMin / 60).toFixed(1)}h após turno em ${exHosp.name} (recomendado ≥ 11h).`
+            });
+          }
+        }
+
+        if (gapBeforeExistingMin >= 0 && gapBeforeExistingMin < 660) {
+          if (existing.hospitalId !== candidate.hospitalId && gapBeforeExistingMin < Math.max(bufferMin, exHosp.travelMin)) {
+            issues.push({
+              level: 'error',
+              text: `Alerta de deslocamento: apenas ${Math.round(gapBeforeExistingMin)} min antes do próximo turno em ${exHosp.name}.`
+            });
+          } else {
+            issues.push({
+              level: 'warn',
+              text: `Descanso interjornada reduzido: ${(gapBeforeExistingMin / 60).toFixed(1)}h antes do turno em ${exHosp.name}.`
+            });
+          }
+        }
+      }
+
+      return issues;
+    }
+
+    // =========================================================
+    // NAVEGAÇÃO & TEMA
+    // =========================================================
+    function toggleTheme() {
+      state.settings.darkMode = !state.settings.darkMode;
+      applyTheme();
+      saveState();
+    }
+
+    function applyTheme() {
+      const html = document.documentElement;
+      const lbl = document.getElementById('themeLabel');
+      if (state.settings.darkMode) {
+        html.classList.add('dark');
+        if (lbl) lbl.textContent = 'Modo Diurno';
+      } else {
+        html.classList.remove('dark');
+        if (lbl) lbl.textContent = 'Modo Noturno';
+      }
+    }
+
+    function toggleLoginScreen(show) {
+      document.getElementById('loginView').classList.toggle('hidden', !show);
+      document.getElementById('appWorkspace').classList.toggle('hidden', show);
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      toggleLoginScreen(false);
+      showToast('Sessão clínica iniciada com sucesso.');
+    }
+
+    function switchTab(tabId) {
+      currentTab = tabId;
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+      const target = document.getElementById(`tab-${tabId}`);
+      if (target) target.classList.remove('hidden');
+
+      // Atualiza sidebar desktop
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        const active = btn.dataset.tab === tabId;
+        btn.className = active
+          ? 'nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-semibold bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-teal-200 dark:border-teal-800 cursor-pointer'
+          : 'nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer';
+      });
+
+      // Atualiza barra mobile
+      document.querySelectorAll('.mob-btn').forEach(btn => {
+        const active = btn.dataset.mob === tabId;
+        btn.className = active
+          ? 'mob-btn flex flex-col items-center justify-center py-1 text-[10px] font-bold text-teal-700 dark:text-teal-400'
+          : 'mob-btn flex flex-col items-center justify-center py-1 text-[10px] font-medium text-slate-500';
+      });
+
+      const titles = {
+        dashboard: ['Visão Geral Operacional', 'Quinta-feira, 19/11/2026 · Controle de turnos, fadiga e HUD ativo'],
+        escala: ['Escalas & Recorrência Fixa', 'Planejamento mensal, vínculos fixos e alertas de deslocamento'],
+        trocas: ['Trocas & Banco de Permutas', 'Coberturas disponíveis e saldo recíproco entre colegas'],
+        equipe: ['Equipe & Escala de Sobreaviso', 'Continuidade assistencial entre turnos e retaguarda'],
+        portfolio: ['Folha de Ponto & Portfólio Clínico', 'Frequência auditada e procedimentos prontos para impressão/PDF'],
+        calculadoras: ['Calculadoras de Cabeceira Offline', 'Drogas vasoativas, SRI, CKD-EPI 2021 e correção de sódio'],
+        instituicoes: ['Hospitais, Ramais & Backup', 'Diretório interno, tempos de deslocamento e backup JSON']
+      };
+      if (titles[tabId]) {
+        document.getElementById('pageTitle').textContent = titles[tabId][0];
+        document.getElementById('pageSubtitle').textContent = titles[tabId][1];
+      }
+    }
+
+    // =========================================================
+    // HUD DE TURNO ATIVO + CHECK-IN / CHECK-OUT
+    // =========================================================
+    function renderActiveHud() {
+      const container = document.getElementById('activeShiftHudContainer');
+      const activeShift = state.shifts.find(s => s.status === 'ACTIVE');
+      const nextShift = state.shifts
+        .filter(s => s.status === 'SCHEDULED')
+        .sort((a, b) => a.date.localeCompare(b.date))[0];
+
+      const badge = document.getElementById('navActiveBadge');
+
+      if (activeShift) {
+        badge.classList.remove('hidden');
+        const hosp = getHospital(activeShift.hospitalId);
+        container.innerHTML = `
+          <div class="rounded-xl border-2 border-teal-600 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3.5">
+              <div class="flex items-center gap-3">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-teal-600 text-white text-xs font-mono font-bold">
+                  <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span> TURNO EM ANDAMENTO
+                </span>
+                <div>
+                  <h2 class="text-base font-bold text-slate-900 dark:text-white">${hosp.name} · ${activeShift.sector}</h2>
+                  <p class="text-xs font-mono text-slate-500">${formatDateBR(activeShift.date)} · ${activeShift.type} (${activeShift.start}–${activeShift.end}) · Check-in: ${activeShift.checkinAt}</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="text-right">
+                  <div class="text-[10px] font-mono uppercase text-slate-400">Cronômetro de Guarda</div>
+                  <div id="hudClock" class="text-lg font-bold font-mono tabular-clinical text-teal-700 dark:text-teal-400">02:14:38</div>
+                </div>
+                <button onclick="openCheckoutModal('${activeShift.id}')" class="px-4 py-2.5 rounded-lg bg-slate-900 dark:bg-teal-700 hover:bg-slate-800 text-white text-xs font-semibold cursor-pointer">
+                  Encerrar & Passar SBAR
+                </button>
+              </div>
+            </div>
+
+            <div class="grid sm:grid-cols-3 gap-4 pt-3.5 items-center">
+              <div class="flex items-center justify-between p-3 rounded-lg surface-subtle">
+                <div>
+                  <div class="text-[11px] font-mono text-slate-500">EVOLUÇÕES / ATENDIMENTOS</div>
+                  <div class="text-lg font-bold font-mono tabular-clinical text-slate-900 dark:text-white">${activeHudCounters.atendimentos}</div>
+                </div>
+                <button onclick="incrementHud('atendimentos')" class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-bold hover:bg-slate-100 cursor-pointer">+1</button>
+              </div>
+
+              <div class="flex items-center justify-between p-3 rounded-lg surface-subtle">
+                <div>
+                  <div class="text-[11px] font-mono text-slate-500">PROCEDIMENTOS INVASIVOS</div>
+                  <div class="text-lg font-bold font-mono tabular-clinical text-slate-900 dark:text-white">${activeHudCounters.procedimentos}</div>
+                </div>
+                <button onclick="incrementHud('procedimentos')" class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-bold hover:bg-slate-100 cursor-pointer">+1</button>
+              </div>
+
+              <div class="p-3 rounded-lg surface-subtle">
+                <div class="text-[10px] font-mono uppercase text-slate-500 mb-1">Ramais Internos · ${hosp.name}</div>
+                <div class="text-xs font-mono text-slate-700 dark:text-slate-300 truncate" title="${hosp.ramais}">${hosp.ramais}</div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        badge.classList.add('hidden');
+        if (!nextShift) {
+          container.innerHTML = '';
+          return;
+        }
+        const hosp = getHospital(nextShift.hospitalId);
+        container.innerHTML = `
+          <div class="surface-card rounded-xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 border-l-4 border-l-teal-600">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                  PRÓXIMO PLANTÃO AGENDADO
+                </span>
+                <span class="text-xs font-mono text-slate-500">${formatDateBR(nextShift.date)} · ${nextShift.start}–${nextShift.end}</span>
+              </div>
+              <h2 class="text-base font-bold text-slate-900 dark:text-white mt-1.5">${hosp.name} — ${nextShift.sector}</h2>
+              <p class="text-xs text-slate-500 mt-0.5">
+                Recebe de: <strong class="text-slate-700 dark:text-slate-300">${nextShift.prevDoc}</strong> · Passa para: <strong class="text-slate-700 dark:text-slate-300">${nextShift.nextDoc}</strong> · Ramais: <span class="font-mono">${hosp.ramais.split('·')[0]}</span>
+              </p>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button onclick="switchTab('calculadoras')" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
+                Calculadoras
+              </button>
+              <button onclick="openCheckinModal('${nextShift.id}')" class="px-4 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold cursor-pointer">
+                Iniciar Turno (Check-in)
+              </button>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    function incrementHud(field) {
+      activeHudCounters[field]++;
+      renderActiveHud();
+      showToast('Contador do turno atualizado.');
+    }
+
+    function openCheckinModal(shiftId) {
+      selectedShiftId = shiftId;
+      const s = state.shifts.find(x => x.id === shiftId);
+      const hosp = getHospital(s.hospitalId);
+      document.getElementById('checkinShiftInfo').textContent = `${hosp.name} · ${s.sector} · ${formatDateBR(s.date)} (${s.start}–${s.end})`;
+      document.getElementById('checkinModal').classList.remove('hidden');
+    }
+
+    function confirmCheckin() {
+      const s = state.shifts.find(x => x.id === selectedShiftId);
+      if (s) {
+        s.status = 'ACTIVE';
+        const now = new Date();
+        s.checkinAt = `19/11 ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        activeHudCounters = { atendimentos: 0, procedimentos: 0 };
+        saveState();
+        closeModal('checkinModal');
+        showToast('Check-in registrado e checklist de setor auditado.');
+      }
+    }
+
+    function openCheckoutModal(shiftId) {
+      selectedShiftId = shiftId;
+      const s = state.shifts.find(x => x.id === shiftId);
+      const hosp = getHospital(s.hospitalId);
+      document.getElementById('checkoutShiftInfo').textContent = `${hosp.name} · ${s.sector} · Passando para ${s.nextDoc}`;
+      document.querySelectorAll('.chk-proc').forEach(c => c.checked = false);
+      document.getElementById('checkoutModal').classList.remove('hidden');
+    }
+
+    function buildSBARText() {
+      const s = state.shifts.find(x => x.id === selectedShiftId);
+      const hosp = s ? getHospital(s.hospitalId) : { name: 'Unidade' };
+      const sit = document.getElementById('sbarS').value.trim() || 'Sem instabilidades agudas no momento.';
+      const bg = document.getElementById('sbarB').value.trim() || 'Sem novas admissões pendentes.';
+      const av = document.getElementById('sbarA').value.trim() || 'Exames laboratoriais de rotina checados.';
+      const rec = document.getElementById('sbarR').value.trim() || 'Manter prescrição e vigilância clínica.';
+
+      return `*PASSAGEM DE PLANTÃO (SBAR) — PLANTÃO ZEN*
+` +
+        `Unidade: ${hosp.name} (${s ? s.sector : ''})
+` +
+        `Data: ${s ? formatDateBR(s.date) : '19/11/2026'} · Próximo plantonista: ${s ? s.nextDoc : ''}
+
+` +
+        `*S (Situação):* ${sit}
+` +
+        `*B (Background):* ${bg}
+` +
+        `*A (Avaliação):* ${av}
+` +
+        `*R (Recomendação):* ${rec}`;
+    }
+
+    function copySBARToWhatsApp() {
+      const txt = buildSBARText();
+      navigator.clipboard?.writeText(txt);
+      showToast('Passagem SBAR copiada para colar no WhatsApp.');
+    }
+
+    function confirmCheckout() {
+      const s = state.shifts.find(x => x.id === selectedShiftId);
+      if (s) {
+        const procs = Array.from(document.querySelectorAll('.chk-proc:checked')).map(c => c.value);
+        s.status = 'COMPLETED';
+        const now = new Date();
+        s.checkoutAt = `20/11 ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        s.procedures = procs;
+        s.sbar = buildSBARText().replace(/\*/g, '');
+        saveState();
+        closeModal('checkoutModal');
+        showToast('Plantão encerrado com passagem SBAR registrada.');
+      }
+    }
+
+    // =========================================================
+    // KPI, FADIGA & DASHBOARD
+    // =========================================================
+    function renderDashboard() {
+      renderActiveHud();
+
+      const totalHours = state.shifts.reduce((acc, s) => acc + s.hours, 0);
+      const dayHours = state.shifts.filter(s => s.type === 'SD').reduce((acc, s) => acc + s.hours, 0);
+      const nightHours = state.shifts.filter(s => s.type !== 'SD').reduce((acc, s) => acc + s.hours, 0);
+
+      // Semana corrente (16/11 a 22/11/2026)
+      const weekHours = state.shifts
+        .filter(s => s.date >= '2026-11-16' && s.date <= '2026-11-22')
+        .reduce((acc, s) => acc + s.hours, 0);
+
+      const totalProcs = state.shifts.reduce((acc, s) => acc + (s.procedures ? s.procedures.length : 0), 0);
+
+      // Sequência de noites consecutivas
+      const sorted = [...state.shifts].sort((a, b) => a.date.localeCompare(b.date));
+      let maxNightStreak = 0, curStreak = 0;
+      sorted.forEach(s => {
+        if (s.type === 'SN' || s.type === '24H') {
+          curStreak++;
+          maxNightStreak = Math.max(maxNightStreak, curStreak);
+        } else {
+          curStreak = 0;
+        }
+      });
+
+      document.getElementById('kpiMonthHours').textContent = `${totalHours}h`;
+      document.getElementById('kpiMonthMeta').textContent = `/ ${state.settings.monthMeta}h meta`;
+      document.getElementById('kpiShiftSplit').textContent = `${dayHours}h diurno · ${nightHours}h noturno`;
+
+      document.getElementById('kpiWeekHours').textContent = `${weekHours}h`;
+      const pct = Math.min(100, Math.round((weekHours / state.settings.weekLimit) * 100));
+      const bar = document.getElementById('fatigueBar');
+      const fBadge = document.getElementById('fatigueBadge');
+      bar.style.width = `${pct}%`;
+
+      if (weekHours > state.settings.weekLimit) {
+        bar.className = 'h-full bg-rose-600 transition-all';
+        fBadge.className = 'text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800';
+        fBadge.textContent = 'SOBRECARGA';
+      } else if (weekHours >= state.settings.weekLimit * 0.8) {
+        bar.className = 'h-full bg-amber-500 transition-all';
+        fBadge.className = 'text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800';
+        fBadge.textContent = 'ATENÇÃO';
+      } else {
+        bar.className = 'h-full bg-teal-600 transition-all';
+        fBadge.className = 'text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800';
+        fBadge.textContent = 'SEGURO';
+      }
+
+      document.getElementById('kpiNightStreak').textContent = maxNightStreak;
+      document.getElementById('kpiProcCount').textContent = totalProcs;
+
+      // Lista filtrada de plantões
+      const filterHosp = document.getElementById('dashHospitalFilter').value;
+      const listEl = document.getElementById('dashShiftList');
+      const filtered = sorted.filter(s => filterHosp === 'ALL' || s.hospitalId === filterHosp);
+
+      listEl.innerHTML = filtered.map(s => renderShiftRow(s)).join('');
+
+      // Sobreaviso rápido
+      document.getElementById('dashOnCallList').innerHTML = state.onCall.slice(0, 3).map(oc => `
+        <div class="flex items-center justify-between text-xs py-1 border-b last:border-0 border-slate-100 dark:border-slate-800">
+          <div>
+            <div class="font-semibold text-slate-800 dark:text-slate-200">${oc.specialty}</div>
+            <div class="text-[11px] text-slate-500">${oc.doctor} · ${oc.unit}</div>
+          </div>
+          <span class="font-mono text-[11px] text-teal-700 dark:text-teal-400">${oc.phone}</span>
+        </div>
+      `).join('');
+
+      // Bloqueios ativos
+      document.getElementById('dashBlocksList').innerHTML = state.blocks.length
+        ? state.blocks.map(b => `
+          <div class="p-2.5 rounded-lg bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 text-xs flex items-start justify-between gap-2">
+            <div>
+              <div class="font-semibold text-rose-900 dark:text-rose-200">${b.reason}</div>
+              <div class="font-mono text-[11px] text-rose-700 dark:text-rose-400 mt-0.5">${formatDateBR(b.start)} → ${formatDateBR(b.end)}</div>
+            </div>
+            <button onclick="removeBlock('${b.id}')" class="text-rose-500 hover:text-rose-700 text-xs font-bold cursor-pointer" title="Remover bloqueio">&times;</button>
+          </div>
+        `).join('')
+        : '<p class="text-xs text-slate-400">Nenhum bloqueio cadastrado no mês.</p>';
+
+      // Banco de permutas resumo
+      document.getElementById('dashSwapBalanceList').innerHTML = state.reciprocalLedgers.map(rl => {
+        const badge = rl.balance > 0
+          ? `<span class="font-mono text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">+${rl.balance} me deve</span>`
+          : rl.balance < 0
+            ? `<span class="font-mono text-[11px] font-semibold text-amber-700 dark:text-amber-400">${rl.balance} devo</span>`
+            : `<span class="font-mono text-[11px] text-slate-400">Quitado</span>`;
+        return `
+          <div class="flex items-center justify-between text-xs py-1">
+            <span class="font-medium text-slate-700 dark:text-slate-300 truncate">${rl.colleague}</span>
+            ${badge}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderShiftRow(s) {
+      const hosp = getHospital(s.hospitalId);
+      const issues = analyzeCandidateShift(s);
+      const hasError = issues.some(i => i.level === 'error');
+      const hasWarn = issues.some(i => i.level === 'warn');
+
+      const typeBadge = s.type === 'SD'
+        ? 'bg-teal-50 dark:bg-teal-950 text-teal-800 dark:text-teal-300 border-teal-200 dark:border-teal-800'
+        : 'bg-blue-50 dark:bg-blue-950 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800';
+
+      const statusBadge = s.status === 'COMPLETED'
+        ? '<span class="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Concluído</span>'
+        : s.status === 'ACTIVE'
+          ? '<span class="text-[11px] font-mono px-2 py-0.5 rounded bg-teal-600 text-white">Em Curso</span>'
+          : '<span class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Agendado</span>';
+
+      return `
+        <div class="p-3.5 sm:px-4 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-start gap-3 min-w-0">
+            <div class="text-center shrink-0 w-12 py-1 rounded-lg surface-subtle">
+              <div class="text-xs font-bold font-mono tabular-clinical text-slate-900 dark:text-white">${s.date.slice(8, 10)}/11</div>
+              <div class="text-[10px] font-mono text-slate-500">${s.hours}h</div>
+            </div>
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded border ${typeBadge}">${s.type} ${s.start}</span>
+                <span class="text-sm font-bold text-slate-900 dark:text-white truncate">${hosp.name} · ${s.sector}</span>
+                ${s.fixed ? '<span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500">FIXO</span>' : ''}
+                ${hasError ? '<span class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300">CONFLITO/DESLOCAMENTO</span>' : ''}
+                ${!hasError && hasWarn ? '<span class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">REPOUSO <11H</span>' : ''}
+              </div>
+              <div class="text-xs text-slate-500 mt-1">
+                Continuidade: ${s.prevDoc} → ${s.nextDoc}
+                ${s.procedures && s.procedures.length ? ` · <span class="font-mono text-teal-700 dark:text-teal-400">${s.procedures.length} proc.</span>` : ''}
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 shrink-0">
+            ${statusBadge}
+            ${s.status === 'SCHEDULED' ? `
+              <button onclick="openCheckinModal('${s.id}')" class="px-2.5 py-1 rounded-md border border-teal-600 text-teal-700 dark:text-teal-300 text-xs font-semibold hover:bg-teal-50 dark:hover:bg-teal-950 cursor-pointer">
+                Check-in
+              </button>
+              <button onclick="sendShiftToSwap('${s.id}')" class="px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer" title="Disponibilizar no mural de trocas">
+                Trocar
+              </button>
+            ` : ''}
+            ${s.status === 'ACTIVE' ? `
+              <button onclick="openCheckoutModal('${s.id}')" class="px-2.5 py-1 rounded-md bg-teal-700 text-white text-xs font-semibold cursor-pointer">
+                Check-out
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    // =========================================================
+    // ESCALA MENSAL, RECORRÊNCIA & BLOQUEIOS
+    // =========================================================
+    function setScheduleView(mode) {
+      scheduleView = mode;
+      document.getElementById('scheduleCalendarContainer').classList.toggle('hidden', mode !== 'calendar');
+      document.getElementById('scheduleListContainer').classList.toggle('hidden', mode !== 'list');
+
+      document.getElementById('btnViewCal').className = mode === 'calendar'
+        ? 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-700 text-white cursor-pointer'
+        : 'px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer';
+      document.getElementById('btnViewList').className = mode === 'list'
+        ? 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-700 text-white cursor-pointer'
+        : 'px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer';
+    }
+
+    function renderSchedule() {
+      const filterHosp = document.getElementById('schedHospitalFilter').value;
+      const shifts = state.shifts.filter(s => filterHosp === 'ALL' || s.hospitalId === filterHosp);
+
+      // Alertas globais da escala
+      const alertsBox = document.getElementById('scheduleAlertsBox');
+      const allIssues = [];
+      shifts.forEach(s => {
+        analyzeCandidateShift(s).forEach(iss => {
+          allIssues.push(`${formatDateBR(s.date)} (${getHospital(s.hospitalId).name}): ${iss.text}`);
+        });
+      });
+      const uniqueIssues = [...new Set(allIssues)];
+      alertsBox.innerHTML = uniqueIssues.map(txt => `
+        <div class="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex items-center gap-2">
+          <span class="font-mono font-bold">[ALERTA]</span>
+          <span>${txt}</span>
+        </div>
+      `).join('');
+
+      // Grade Calendário Novembro 2026 (01/11/2026 é Domingo = índice 0)
+      const grid = document.getElementById('calendarGrid');
+      let cellsHtml = '';
+      for (let day = 1; day <= 30; day++) {
+        const iso = `2026-11-${String(day).padStart(2, '0')}`;
+        const dayShifts = shifts.filter(s => s.date === iso);
+        const isBlocked = state.blocks.some(b => iso >= b.start && iso <= b.end);
+        const isToday = iso === '2026-11-19';
+
+        cellsHtml += `
+          <div class="min-h-[96px] p-1.5 sm:p-2 ${isBlocked ? 'bg-rose-50/50 dark:bg-rose-950/20' : 'bg-white dark:bg-slate-900'} flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-mono ${isToday ? 'px-1.5 py-0.5 rounded bg-teal-700 text-white font-bold' : 'text-slate-500'}">${day}</span>
+              ${isBlocked ? '<span class="text-[9px] font-mono text-rose-600 font-semibold">BLOQ</span>' : ''}
+            </div>
+            <div class="space-y-1 mt-1">
+              ${dayShifts.map(ds => {
+                const h = getHospital(ds.hospitalId);
+                const pill = ds.type === 'SD'
+                  ? 'bg-teal-50 dark:bg-teal-950 text-teal-800 dark:text-teal-300 border-teal-200 dark:border-teal-800'
+                  : 'bg-blue-50 dark:bg-blue-950 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800';
+                return `
+                  <div class="px-1.5 py-1 rounded border text-[10px] leading-tight ${pill}">
+                    <div class="font-mono font-bold">${ds.type} · ${ds.start}</div>
+                    <div class="truncate">${h.name.replace('Hospital ', '')}</div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }
+      // Completa 35 células
+      for (let pad = 0; pad < 5; pad++) {
+        cellsHtml += `<div class="min-h-[96px] bg-slate-50/60 dark:bg-slate-900/40"></div>`;
+      }
+      grid.innerHTML = cellsHtml;
+
+      // Lista completa
+      const sorted = [...shifts].sort((a, b) => a.date.localeCompare(b.date));
+      document.getElementById('fullShiftList').innerHTML = sorted.map(s => renderShiftRow(s)).join('');
+    }
+
+    function openShiftModal(isRecurring = false) {
+      const sel = document.getElementById('mShiftHospital');
+      sel.innerHTML = state.hospitals.map(h => `<option value="${h.id}">${h.name} (desloc. ${h.travelMin}m)</option>`).join('');
+      document.getElementById('mShiftRecurrence').value = isRecurring ? 'WEEKLY_4' : 'SINGLE';
+      validateShiftPreview();
+      document.getElementById('shiftModal').classList.remove('hidden');
+    }
+
+    function validateShiftPreview() {
+      const type = document.getElementById('mShiftType').value;
+      const cand = {
+        id: 'preview',
+        hospitalId: document.getElementById('mShiftHospital').value,
+        date: document.getElementById('mShiftDate').value,
+        type,
+        start: type === 'SN' ? '19:00' : '07:00',
+        end: type === 'SD' ? '19:00' : '07:00',
+        hours: type === '24H' ? 24 : 12
+      };
+      const issues = analyzeCandidateShift(cand);
+      const box = document.getElementById('mShiftValidationBox');
+      if (!issues.length) {
+        box.classList.add('hidden');
+        return;
+      }
+      box.classList.remove('hidden');
+      const hasErr = issues.some(i => i.level === 'error');
+      box.className = hasErr
+        ? 'p-3 rounded-lg text-xs bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 space-y-1'
+        : 'p-3 rounded-lg text-xs bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 space-y-1';
+      box.innerHTML = issues.map(i => `<div>• ${i.text}</div>`).join('');
+    }
+
+    function saveNewShift(e) {
+      e.preventDefault();
+      const hospitalId = document.getElementById('mShiftHospital').value;
+      const sector = document.getElementById('mShiftSector').value;
+      const baseDate = document.getElementById('mShiftDate').value;
+      const type = document.getElementById('mShiftType').value;
+      const rec = document.getElementById('mShiftRecurrence').value;
+      const prevDoc = document.getElementById('mShiftPrevDoc').value;
+      const nextDoc = document.getElementById('mShiftNextDoc').value;
+
+      const occurrences = rec === 'WEEKLY_4' ? 4 : rec === 'BIWEEKLY_3' ? 3 : 1;
+      const stepDays = rec === 'BIWEEKLY_3' ? 14 : 7;
+
+      const [y, m, d] = baseDate.split('-').map(Number);
+      for (let i = 0; i < occurrences; i++) {
+        const dt = new Date(y, m - 1, d + i * stepDays);
+        const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+        state.shifts.push({
+          id: 's_' + Date.now() + '_' + i,
+          date: iso,
+          hospitalId,
+          sector,
+          type,
+          start: type === 'SN' ? '19:00' : '07:00',
+          end: type === 'SD' ? '19:00' : '07:00',
+          hours: type === '24H' ? 24 : 12,
+          fixed: rec !== 'SINGLE',
+          status: 'SCHEDULED',
+          checkinAt: null,
+          checkoutAt: null,
+          prevDoc,
+          nextDoc,
+          procedures: [],
+          sbar: ''
+        });
+      }
+
+      saveState();
+      closeModal('shiftModal');
+      showToast(occurrences > 1 ? `Escala fixa projetada (${occurrences} turnos adicionados).` : 'Plantão adicionado à escala.');
+    }
+
+    function openBlockModal() {
+      document.getElementById('blockModal').classList.remove('hidden');
+    }
+
+    function saveBlockPeriod(e) {
+      e.preventDefault();
+      const reason = document.getElementById('bReason').value;
+      const start = document.getElementById('bStart').value;
+      const end = document.getElementById('bEnd').value;
+      const autoSwap = document.getElementById('bAutoSwap').checked;
+
+      state.blocks.push({ id: 'bl_' + Date.now(), reason, start, end });
+
+      let movedCount = 0;
+      if (autoSwap) {
+        const affected = state.shifts.filter(s => s.status === 'SCHEDULED' && s.date >= start && s.date <= end);
+        affected.forEach(s => {
+          state.openSwaps.unshift({
+            id: 'sw_' + s.id,
+            colleague: 'Dr. Lucas Rosa (Você)',
+            hospitalId: s.hospitalId,
+            sector: s.sector,
+            date: s.date,
+            type: s.type,
+            start: s.start,
+            end: s.end,
+            hours: s.hours,
+            note: `Bloqueio de agenda: ${reason}`
+          });
+          movedCount++;
+        });
+        state.shifts = state.shifts.filter(s => !(s.status === 'SCHEDULED' && s.date >= start && s.date <= end));
+      }
+
+      saveState();
+      closeModal('blockModal');
+      showToast(movedCount > 0
+        ? `Período bloqueado e ${movedCount} plantão(ões) enviado(s) para cobertura.`
+        : 'Período de indisponibilidade registrado.');
+    }
+
+    function removeBlock(id) {
+      state.blocks = state.blocks.filter(b => b.id !== id);
+      saveState();
+      showToast('Bloqueio removido.');
+    }
+
+    // =========================================================
+    // TROCAS, COBERTURAS & BANCO DE PERMUTAS
+    // =========================================================
+    function sendShiftToSwap(shiftId) {
+      const s = state.shifts.find(x => x.id === shiftId);
+      if (!s) return;
+      state.openSwaps.unshift({
+        id: 'sw_' + Date.now(),
+        colleague: 'Dr. Lucas Rosa (Você)',
+        hospitalId: s.hospitalId,
+        sector: s.sector,
+        date: s.date,
+        type: s.type,
+        start: s.start,
+        end: s.end,
+        hours: s.hours,
+        note: 'Disponibilizado para permuta ou cobertura.'
+      });
+      state.shifts = state.shifts.filter(x => x.id !== shiftId);
+      saveState();
+      showToast('Plantão publicado no Mural de Trocas.');
+    }
+
+    function acceptOpenSwap(swapId) {
+      const sw = state.openSwaps.find(x => x.id === swapId);
+      if (!sw) return;
+
+      state.shifts.push({
+        id: 's_' + Date.now(),
+        date: sw.date,
+        hospitalId: sw.hospitalId,
+        sector: sw.sector,
+        type: sw.type,
+        start: sw.start,
+        end: sw.end,
+        hours: sw.hours,
+        fixed: false,
+        status: 'SCHEDULED',
+        checkinAt: null,
+        checkoutAt: null,
+        prevDoc: 'Equipe Anterior',
+        nextDoc: 'Equipe Seguinte',
+        procedures: [],
+        sbar: ''
+      });
+
+      // Atualiza saldo no Banco de Trocas Recíprocas
+      if (!sw.colleague.includes('Você')) {
+        const existing = state.reciprocalLedgers.find(r => r.colleague === sw.colleague);
+        if (existing) {
+          existing.balance += 1;
+          existing.lastNote = `Assumi ${sw.type} em ${formatDateBR(sw.date)} (+1 me deve)`;
+        } else {
+          state.reciprocalLedgers.unshift({
+            id: 'rl_' + Date.now(),
+            colleague: sw.colleague,
+            hospital: getHospital(sw.hospitalId).name,
+            balance: 1,
+            lastNote: `Assumi ${sw.type} em ${formatDateBR(sw.date)}`
+          });
+        }
+      }
+
+      state.openSwaps = state.openSwaps.filter(x => x.id !== swapId);
+      saveState();
+      showToast('Cobertura incorporada à sua escala e saldo de permuta atualizado.');
+    }
+
+    function copySwapWhatsApp(swapId) {
+      const sw = state.openSwaps.find(x => x.id === swapId);
+      if (!sw) return;
+      const hosp = getHospital(sw.hospitalId);
+      const txt = `*COBERTURA DE PLANTÃO — ${hosp.name.toUpperCase()}*
+Setor: ${sw.sector}
+Data: ${formatDateBR(sw.date)} · Turno ${sw.type} (${sw.start}–${sw.end})
+Solicitante: ${sw.colleague}
+Obs: ${sw.note}`;
+      navigator.clipboard?.writeText(txt);
+      showToast('Aviso de cobertura copiado para o WhatsApp.');
+    }
+
+    function adjustLedger(id, delta) {
+      const item = state.reciprocalLedgers.find(r => r.id === id);
+      if (!item) return;
+      item.balance += delta;
+      item.lastNote = `Ajuste manual em 19/11/2026`;
+      saveState();
+      showToast('Saldo de permuta atualizado.');
+    }
+
+    function renderSwaps() {
+      const listEl = document.getElementById('openSwapsList');
+      listEl.innerHTML = state.openSwaps.length ? state.openSwaps.map(sw => {
+        const hosp = getHospital(sw.hospitalId);
+        const issues = analyzeCandidateShift(sw);
+        const hasErr = issues.some(i => i.level === 'error');
+        return `
+          <div class="p-4 space-y-2.5">
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800">${formatDateBR(sw.date)} · ${sw.type}</span>
+                  <span class="text-sm font-bold text-slate-900 dark:text-white">${hosp.name} (${sw.sector})</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-1">Solicitante: <strong>${sw.colleague}</strong> · ${sw.note}</p>
+              </div>
+              ${hasErr
+                ? `<span class="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300">Conflito/Deslocamento</span>`
+                : `<span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">Grade Compatível</span>`}
+            </div>
+            ${issues.length ? `<div class="text-[11px] text-amber-700 dark:text-amber-300">${issues[0].text}</div>` : ''}
+            <div class="flex items-center gap-2 pt-1">
+              <button onclick="acceptOpenSwap('${sw.id}')" class="px-3 py-1.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold cursor-pointer">
+                Assumir Cobertura
+              </button>
+              <button onclick="copySwapWhatsApp('${sw.id}')" class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
+                Copiar p/ WhatsApp
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('') : '<div class="p-6 text-xs text-slate-400 text-center">Nenhuma vaga aberta no mural no momento.</div>';
+
+      // Banco de Trocas Recíprocas
+      const ledEl = document.getElementById('reciprocalLedgersList');
+      ledEl.innerHTML = state.reciprocalLedgers.map(rl => {
+        const badge = rl.balance > 0
+          ? `<span class="px-2 py-0.5 rounded font-mono text-xs font-bold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">+${rl.balance} a receber</span>`
+          : rl.balance < 0
+            ? `<span class="px-2 py-0.5 rounded font-mono text-xs font-bold bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-300">${rl.balance} a pagar</span>`
+            : `<span class="px-2 py-0.5 rounded font-mono text-xs bg-slate-100 dark:bg-slate-800 text-slate-500">Quitado (0)</span>`;
+        return `
+          <div class="p-4 flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <div class="text-sm font-bold text-slate-900 dark:text-white">${rl.colleague}</div>
+              <div class="text-[11px] text-slate-500">${rl.hospital} · ${rl.lastNote}</div>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              ${badge}
+              <button onclick="adjustLedger('${rl.id}', -1)" class="w-6 h-6 rounded border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer" title="Abater turno">-</button>
+              <button onclick="adjustLedger('${rl.id}', 1)" class="w-6 h-6 rounded border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer" title="Somar turno">+</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openOfferSwapModal() {
+      const next = state.shifts.find(s => s.status === 'SCHEDULED');
+      if (next) {
+        sendShiftToSwap(next.id);
+      } else {
+        showToast('Nenhum plantão agendado disponível para ofertar.');
+      }
+    }
+
+    function openReciprocalModal() {
+      const name = prompt('Nome do colega médico para registrar permuta:');
+      if (!name) return;
+      state.reciprocalLedgers.unshift({
+        id: 'rl_' + Date.now(),
+        colleague: name,
+        hospital: 'Hospital Santa Casa',
+        balance: 1,
+        lastNote: 'Permuta registrada em 19/11/2026'
+      });
+      saveState();
+      showToast('Colega adicionado ao Banco de Permutas.');
+    }
+
+    // =========================================================
+    // EQUIPE, CONTINUIDADE & SOBREAVISO
+    // =========================================================
+    function renderTeam() {
+      const contEl = document.getElementById('teamContinuityList');
+      const santaCasaShifts = state.shifts.filter(s => s.hospitalId === 'h1').sort((a, b) => a.date.localeCompare(b.date));
+
+      contEl.innerHTML = santaCasaShifts.map(s => `
+        <div class="p-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-mono font-bold text-teal-700 dark:text-teal-400">${formatDateBR(s.date)} · ${s.type}</span>
+              <span class="text-xs font-semibold text-slate-900 dark:text-white">${s.sector}</span>
+            </div>
+            <div class="text-xs text-slate-500 mt-1">
+              Recebe plantão de: <strong class="text-slate-700 dark:text-slate-300">${s.prevDoc}</strong> → Passa para: <strong class="text-slate-700 dark:text-slate-300">${s.nextDoc}</strong>
+            </div>
+          </div>
+          <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Dr. Lucas Rosa</span>
+        </div>
+      `).join('');
+
+      const ocEl = document.getElementById('onCallFullList');
+      ocEl.innerHTML = state.onCall.map(oc => `
+        <div class="p-3.5 flex items-center justify-between gap-2">
+          <div>
+            <div class="text-xs font-bold text-slate-900 dark:text-white">${oc.specialty}</div>
+            <div class="text-xs text-slate-500">${oc.doctor} · ${oc.unit}</div>
+          </div>
+          <div class="text-right">
+            <div class="text-xs font-mono font-semibold text-teal-700 dark:text-teal-400">${oc.phone}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function openOnCallModal() {
+      const spec = prompt('Especialidade de sobreaviso (ex: Endoscopia Digestiva):');
+      if (!spec) return;
+      const doc = prompt('Nome do médico sobreaviso:') || 'Dr. Plantonista';
+      const phone = prompt('Telefone / Ramal:') || '(21) 99999-0000';
+      state.onCall.push({ id: 'oc_' + Date.now(), specialty: spec, doctor: doc, phone, unit: 'Santa Casa' });
+      saveState();
+      showToast('Especialidade adicionada à escala de sobreaviso.');
+    }
+
+    // =========================================================
+    // FOLHA DE PONTO & PORTFÓLIO DE PROCEDIMENTOS
+    // =========================================================
+    function renderPortfolio() {
+      const filterHosp = document.getElementById('portfolioHospitalFilter').value;
+      const filtered = state.shifts
+        .filter(s => filterHosp === 'ALL' || s.hospitalId === filterHosp)
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      const completedHours = filtered.filter(s => s.status === 'COMPLETED').reduce((acc, s) => acc + s.hours, 0);
+      const procCounts = {};
+      let totalProcs = 0;
+
+      filtered.forEach(s => {
+        (s.procedures || []).forEach(p => {
+          procCounts[p] = (procCounts[p] || 0) + 1;
+          totalProcs++;
+        });
+      });
+
+      document.getElementById('portfolioSummaryBadge').textContent = `${completedHours}h cumpridas · ${totalProcs} procedimentos`;
+
+      const procEntries = Object.entries(procCounts);
+      document.getElementById('portfolioProcGrid').innerHTML = procEntries.length
+        ? procEntries.map(([name, qty]) => `
+          <div class="p-3 rounded-lg surface-subtle">
+            <div class="text-lg font-bold font-mono tabular-clinical text-slate-900 dark:text-white">${qty}</div>
+            <div class="text-[11px] text-slate-600 dark:text-slate-300 leading-snug mt-0.5">${name}</div>
+          </div>
+        `).join('')
+        : '<div class="col-span-full text-xs text-slate-400">Nenhum procedimento registrado neste filtro.</div>';
+
+      document.getElementById('portfolioTableBody').innerHTML = filtered.map(s => {
+        const hosp = getHospital(s.hospitalId);
+        return `
+          <tr>
+            <td class="py-2.5 px-3 font-mono">${formatDateBR(s.date)}</td>
+            <td class="py-2.5 px-3 font-medium">${hosp.name} · ${s.sector}</td>
+            <td class="py-2.5 px-3 font-mono">${s.type} (${s.hours}h)</td>
+            <td class="py-2.5 px-3 font-mono text-slate-500">${s.checkinAt || '—'} / ${s.checkoutAt || '—'}</td>
+            <td class="py-2.5 px-3">${(s.procedures && s.procedures.length) ? s.procedures.join(', ') : '—'}</td>
+            <td class="py-2.5 px-3 font-mono">${s.status === 'COMPLETED' ? 'Auditado' : 'Previsto'}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // =========================================================
+    // CALCULADORAS CLÍNICAS OFFLINE
+    // =========================================================
+    function calcDVA() {
+      const conc = Number(document.getElementById('dvaDrug').value);
+      const weight = Number(document.getElementById('dvaWeight').value) || 70;
+      const dose = Number(document.getElementById('dvaDose').value) || 0;
+      const mcgHour = dose * weight * 60;
+      const mlHour = mcgHour / conc;
+      document.getElementById('dvaResult').textContent = `${mlHour.toFixed(1)} mL/h`;
+      document.getElementById('dvaNote').textContent = `${Math.round(mcgHour)} mcg/h · Conc: ${conc} mcg/mL`;
+    }
+
+    function calcSRI() {
+      const w = Number(document.getElementById('sriWeight').value) || 75;
+      const rows = [
+        { name: 'Fentanil (50 mcg/mL)', dose: `${(w * 2).toFixed(0)} mcg (2 mcg/kg)`, vol: `${((w * 2) / 50).toFixed(1)} mL` },
+        { name: 'Etomidato (2 mg/mL)', dose: `${(w * 0.3).toFixed(1)} mg (0,3 mg/kg)`, vol: `${((w * 0.3) / 2).toFixed(1)} mL` },
+        { name: 'Cetamina (50 mg/mL)', dose: `${(w * 1.5).toFixed(0)} mg (1,5 mg/kg)`, vol: `${((w * 1.5) / 50).toFixed(1)} mL` },
+        { name: 'Succinilcolina (100mg/10mL)', dose: `${(w * 1.0).toFixed(0)} mg (1,0 mg/kg)`, vol: `${((w * 1.0) / 10).toFixed(1)} mL` },
+        { name: 'Rocurônio (10 mg/mL)', dose: `${(w * 1.2).toFixed(0)} mg (1,2 mg/kg)`, vol: `${((w * 1.2) / 10).toFixed(1)} mL` }
+      ];
+      document.getElementById('sriTable').innerHTML = rows.map(r => `
+        <div class="flex items-center justify-between p-2 rounded surface-subtle">
+          <span class="font-semibold text-slate-800 dark:text-slate-200">${r.name}</span>
+          <span class="text-teal-700 dark:text-teal-400 font-bold">${r.dose} → ${r.vol}</span>
+        </div>
+      `).join('');
+    }
+
+    function calcCKD() {
+      const cr = Number(document.getElementById('ckdCr').value) || 1.0;
+      const age = Number(document.getElementById('ckdAge').value) || 50;
+      const sex = document.getElementById('ckdSex').value;
+      const k = sex === 'F' ? 0.7 : 0.9;
+      const alpha = sex === 'F' ? -0.241 : -0.302;
+      const sexFactor = sex === 'F' ? 1.012 : 1.0;
+
+      const minPart = Math.min(cr / k, 1) ** alpha;
+      const maxPart = Math.max(cr / k, 1) ** -1.200;
+      const egfr = 142 * minPart * maxPart * (0.9938 ** age) * sexFactor;
+
+      document.getElementById('ckdResult').textContent = `${Math.round(egfr)} mL/min/1,73m²`;
+      const st = document.getElementById('ckdStage');
+      if (egfr >= 90) st.textContent = 'G1 · Normal';
+      else if (egfr >= 60) st.textContent = 'G2 · Levemente reduzida';
+      else if (egfr >= 45) st.textContent = 'G3a · Discreta/Moderada';
+      else if (egfr >= 30) st.textContent = 'G3b · Moderada/Grave';
+      else if (egfr >= 15) st.textContent = 'G4 · Grave';
+      else st.textContent = 'G5 · Falência Renal';
+    }
+
+    function calcSodium() {
+      const na = Number(document.getElementById('naVal').value) || 135;
+      const glu = Number(document.getElementById('naGlu').value) || 100;
+      const w = Number(document.getElementById('naWeight').value) || 70;
+      const corr = glu > 100 ? na + 0.016 * (glu - 100) : na;
+      const tbw = w * 0.6;
+      const deltaSF = (154 - na) / (tbw + 1);
+      const deltaNaCl3 = (513 - na) / (tbw + 1);
+
+      document.getElementById('naCorrected').textContent = `${corr.toFixed(1)} mEq/L`;
+      document.getElementById('naInfusion').innerHTML = `SF 0,9%: ${deltaSF >= 0 ? '+' : ''}${deltaSF.toFixed(1)} mEq/L<br/>NaCl 3%: +${deltaNaCl3.toFixed(1)} mEq/L`;
+    }
+
+    // =========================================================
+    // HOSPITAIS, EXPORTAÇÕES (.ICS / .JSON) & ATALHOS
+    // =========================================================
+    function renderHospitals() {
+      const el = document.getElementById('hospitalsDirectoryList');
+      el.innerHTML = state.hospitals.map(h => `
+        <div class="p-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-bold text-slate-900 dark:text-white">${h.name}</span>
+              <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Deslocamento: ${h.travelMin} min</span>
+            </div>
+            <div class="text-xs font-mono text-teal-700 dark:text-teal-400 mt-1">${h.ramais}</div>
+          </div>
+          <span class="text-xs text-slate-400">${h.city}</span>
+        </div>
+      `).join('');
+
+      document.getElementById('cfgMonthMeta').value = state.settings.monthMeta;
+      document.getElementById('cfgWeekLimit').value = state.settings.weekLimit;
+      document.getElementById('cfgTravelBuffer').value = state.settings.travelBufferMin;
+    }
+
+    function openHospitalModal() {
+      const name = prompt('Nome da instituição hospitalar:');
+      if (!name) return;
+      const travelMin = Number(prompt('Tempo médio de deslocamento até esta unidade (minutos):', '40')) || 40;
+      const ramais = prompt('Ramais internos principais:', 'UTI: 1001 · Lab: 1020 · Farmácia: 1030') || '';
+      state.hospitals.push({ id: 'h_' + Date.now(), name, city: 'Rio de Janeiro', travelMin, ramais });
+      saveState();
+      showToast('Instituição cadastrada no diretório.');
+    }
+
+    function saveSettings() {
+      state.settings.monthMeta = Number(document.getElementById('cfgMonthMeta').value) || 168;
+      state.settings.weekLimit = Number(document.getElementById('cfgWeekLimit').value) || 60;
+      state.settings.travelBufferMin = Number(document.getElementById('cfgTravelBuffer').value) || 45;
+      saveState();
+      showToast('Parâmetros de segurança atualizados.');
+    }
+
+    function exportICS() {
+      let ics = 'BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Plantao Zen//Escala Clinica//PT-BR
+';
+      state.shifts.forEach(s => {
+        const hosp = getHospital(s.hospitalId);
+        const dt = s.date.replace(/-/g, '');
+        const st = s.start.replace(':', '') + '00';
+        ics += `BEGIN:VEVENT
+SUMMARY:Plantão ${s.type} - ${hosp.name} (${s.sector})
+DTSTART:${dt}T${st}
+DURATION:PT${s.hours}H
+DESCRIPTION:Continuidade: ${s.prevDoc} -> ${s.nextDoc}
+END:VEVENT
+`;
+      });
+      ics += 'END:VCALENDAR';
+      downloadFile('escala-plantao-zen.ics', ics, 'text/calendar');
+      showToast('Arquivo .ICS gerado para Google/Apple Calendar.');
+    }
+
+    function exportJSONBackup() {
+      downloadFile('backup-plantao-zen.json', JSON.stringify(state, null, 2), 'application/json');
+      showToast('Backup offline JSON exportado.');
+    }
+
+    function importJSONBackup(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          state = JSON.parse(ev.target.result);
+          saveState();
+          showToast('Backup restaurado com sucesso.');
+        } catch (err) {
+          showToast('Arquivo JSON inválido.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function resetDemoData() {
+      state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+      saveState();
+      showToast('Dados de demonstração restaurados.');
+    }
+
+    function downloadFile(filename, content, mime) {
+      const blob = new Blob([content], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // =========================================================
+    // BUSCA GLOBAL & MODAIS
+    // =========================================================
+    function openSearchModal() {
+      document.getElementById('searchModal').classList.remove('hidden');
+      const inp = document.getElementById('globalSearchInput');
+      inp.value = '';
+      inp.focus();
+      runGlobalSearch();
+    }
+
+    function runGlobalSearch() {
+      const q = document.getElementById('globalSearchInput').value.toLowerCase();
+      const res = document.getElementById('globalSearchResults');
+      const matches = [];
+
+      state.shifts.forEach(s => {
+        const h = getHospital(s.hospitalId);
+        const text = `${formatDateBR(s.date)} ${h.name} ${s.sector} ${s.prevDoc} ${s.nextDoc}`;
+        if (!q || text.toLowerCase().includes(q)) {
+          matches.push(`<div class="py-2 flex justify-between"><span><strong>${formatDateBR(s.date)}</strong> · ${h.name} (${s.sector})</span><span class="font-mono text-teal-600">${s.type}</span></div>`);
+        }
+      });
+
+      state.onCall.forEach(oc => {
+        const text = `${oc.specialty} ${oc.doctor} ${oc.phone}`;
+        if (q && text.toLowerCase().includes(q)) {
+          matches.push(`<div class="py-2 flex justify-between"><span>Sobreaviso: <strong>${oc.specialty}</strong> · ${oc.doctor}</span><span class="font-mono">${oc.phone}</span></div>`);
+        }
+      });
+
+      res.innerHTML = matches.slice(0, 8).join('') || '<div class="py-4 text-center text-slate-400">Nenhum registro encontrado.</div>';
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    function populateHospitalSelects() {
+      const opts = `<option value="ALL">Todas as unidades</option>` +
+        state.hospitals.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
+      ['dashHospitalFilter', 'schedHospitalFilter', 'portfolioHospitalFilter'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          const cur = el.value;
+          el.innerHTML = opts;
+          if (cur) el.value = cur;
+        }
+      });
+    }
+
+    function refreshAll() {
+      populateHospitalSelects();
+      document.getElementById('navShiftsCount').textContent = state.shifts.length;
+      document.getElementById('navSwapsCount').textContent = state.openSwaps.length;
+
+      renderDashboard();
+      renderSchedule();
+      renderSwaps();
+      renderTeam();
+      renderPortfolio();
+      renderHospitals();
+    }
+
+    // Atalhos de teclado clínicos
+    document.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        openSearchModal();
+      } else if (e.key === 'Escape') {
+        ['shiftModal', 'checkinModal', 'checkoutModal', 'blockModal', 'searchModal'].forEach(closeModal);
+      } else if (!['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+        if (e.key.toLowerCase() === 'n') openShiftModal();
+        if (e.key.toLowerCase() === 'c') switchTab('calculadoras');
+      }
+    });
+
+    // Cronômetro simulado ao vivo para o HUD de Turno Ativo
+    let hudSeconds = 8078;
+    setInterval(() => {
+      hudSeconds++;
+      const clk = document.getElementById('hudClock');
+      if (clk) {
+        const hh = String(Math.floor(hudSeconds / 3600)).padStart(2, '0');
+        const mm = String(Math.floor((hudSeconds % 3600) / 60)).padStart(2, '0');
+        const ss = String(hudSeconds % 60).padStart(2, '0');
+        clk.textContent = `${hh}:${mm}:${ss}`;
+      }
+    }, 1000);
+
+    // Inicialização
+    applyTheme();
+    switchTab('dashboard');
+    refreshAll();
+    calcDVA();
+    calcSRI();
+    calcCKD();
+    calcSodium();
+  </script>
+</body>
+</html>
